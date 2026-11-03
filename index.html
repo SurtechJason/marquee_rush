@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bungee&family=Figtree:wght@400;500;600;700&display=swap">
 <style>
-/* Layout: a ring of 50 marquee bulbs on the left, a narrow control column on the right.
+/* Layout: a ring of up to 40 marquee bulbs on the left, a narrow control column on the right.
    Look: a deliberate single-theme theatre-marquee board. Dark stage, warm bulbs, one cyan "you" marker. */
 :root{
   --bg:#171123;
@@ -86,11 +86,27 @@ button{font:inherit;color:inherit;cursor:pointer}
 .c-big{font-family:var(--font-display);font-size:max(30px,9cqw);line-height:1;font-variant-numeric:tabular-nums}
 .c-big:empty{display:none}
 .emojis{display:flex;gap:1.4cqw;justify-content:center;flex-wrap:wrap;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
-.emo{width:max(54px,12cqw);aspect-ratio:1;border-radius:50%;background:var(--panel);border:2px solid var(--line);font-size:max(30px,7cqw);line-height:1;display:grid;place-items:center;padding:0;cursor:pointer;touch-action:manipulation;transition:transform .1s,border-color .1s}
+.emo{width:max(40px,calc(var(--ew,12)*1cqw));aspect-ratio:1;border-radius:50%;background:var(--panel);border:2px solid var(--line);font-size:max(24px,calc(var(--ew,12)*.58cqw));line-height:1;display:grid;place-items:center;padding:0;cursor:pointer;touch-action:manipulation;transition:transform .1s,border-color .1s}
 .emo:hover:not(.idle){transform:scale(1.1);border-color:var(--bulb-on)}
 .emo.idle{opacity:.55;cursor:default}
 .emo.picked{border-color:var(--you);background:#12303a;transform:scale(1.1)}
 kbd.emo-k{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-size:22px;background:var(--bg);border:1px solid var(--line);padding:2px 10px}
+.est{font-weight:700;color:var(--bulb-on);font-size:17px}
+.nbar{width:min(60%,240px)}
+.emo.picked.ok{border-color:var(--ok);background:#0f2a22}
+.emo.picked.bad{border-color:var(--bad);background:#3a1220}
+.sh{font-size:18px;margin:4px 0 -6px}
+.sessions{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.sess{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--panel);border:2px solid var(--line);border-radius:12px;padding:10px 12px}
+.sess .si{display:flex;flex-direction:column;min-width:0}
+.sess .si b{font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sess .si span{color:var(--muted);font-size:14px}
+.host-box{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.host-box .row{flex-wrap:nowrap}
+.host-box .row input{flex:1;min-width:0;width:auto}
+.settings{display:flex;flex-direction:column;gap:8px}
+.settings label{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:600;font-size:15px}
+.settings input{font:inherit;width:72px;background:var(--bg);color:var(--text);border:2px solid var(--line);border-radius:10px;padding:6px 10px}
 .limrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .limrow input{font:inherit;width:84px;background:var(--bg);color:var(--text);border:2px solid var(--line);border-radius:10px;padding:6px 10px}
 .c-big.you{color:var(--you)}
@@ -228,38 +244,40 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 <div class="wrap">
   <header class="top">
     <div class="brand">Marquee Rush</div>
-    <div class="hud"><span class="chip" id="hRound">Lobby</span><span class="chip clock" id="hClock">14:00</span></div>
+    <div class="hud"><span class="chip" id="hRound">Lobby</span><span class="chip clock" id="hClock" title="Estimated time left">~0:00</span><button class="chip" id="bLeave" hidden>Leave</button></div>
   </header>
 
   <section id="sJoin" class="join">
     <h1>Marquee Rush</h1>
-    <p class="lede">The ring has one bulb per player, with a minimum of 10. The bulbs light up one by one. When your number glows, click the right emoji. Most correct hits in 14 minutes wins.</p>
+    <p class="lede">Numbers from 1 to 100 light up around the ring, one at a time. For every number, click the emoji that matches the rules. Most correct answers after the final round wins.</p>
     <label for="name">Your name</label>
     <input id="name" maxlength="14" autocomplete="off" placeholder="Enter your name">
-    <div class="row">
-      <button class="btn primary" id="bJoin" disabled>Join game</button>
-      <button class="btn" id="bHost" disabled>Host a new game</button>
-    </div>
+    <h2 class="sh" id="sessHead" hidden>Open games</h2>
+    <ul class="sessions" id="sessList"></ul>
     <p class="fine" id="joinNote">Connecting to the room...</p>
     <p class="fine" id="roomInfo"></p>
+    <div class="host-box">
+      <label for="sname">Or start your own game</label>
+      <div class="row"><input id="sname" maxlength="14" autocomplete="off" placeholder="Game name (optional)"><button class="btn primary" id="bHost" disabled>Host a new game</button></div>
+    </div>
     <ul class="howto">
-      <li>The ring has one bulb per player, with a minimum of 10. Three emojis appear in the middle each round. Bulbs light one at a time, and when yours lights you click the right emoji.</li>
-      <li>Your number stays hidden until 5 bulbs before it lights.</li>
-      <li>Before every round, two random players each draft one rule from three choices. A rule links numbers to an emoji, for example <b>odd numbers: the pizza</b>. Every other number uses the round's default emoji.</li>
-      <li>Keep this tab open while you play. It works on phones too.</li>
+      <li>The host picks how many numbers each round shows (10 to 99). They are random numbers from 1 to 100, in ascending order around the ring. Up to 2 games can run at once, with up to 40 players each.</li>
+      <li>Three to six emojis sit in the middle. Each number lights for the time the host sets (3 seconds by default), and everyone clicks the emoji the rules give for that number.</li>
+      <li>Before every round, random players each draft one rule from three choices (one fewer than the number of emojis, so 2 players with 3 emojis, 5 with 6). A rule links numbers to an emoji, for example <b>odd numbers: the pizza</b>. Every other number uses the round's default emoji.</li>
+      <li>The leaderboard shows for 6 seconds after every round. You can join a game at any time, even mid-round. Keep this tab open while you play. It works on phones too.</li>
     </ul>
   </section>
 
   <section id="sGame" class="game" hidden>
     <div class="stage"><div class="ring" id="ring">
-      <div class="core"><div class="c-label" id="cLabel"></div><div class="c-big" id="cBig"></div><div class="emojis" id="emojis" hidden></div><div class="c-sub" id="cSub"></div></div>
+      <div class="core"><div class="c-label" id="cLabel"></div><div class="c-big" id="cBig"></div><div class="emojis" id="emojis" hidden></div><div class="bar nbar" id="nBarWrap" hidden><i id="nBar"></i></div><div class="c-sub" id="cSub"></div></div>
     </div></div>
     <aside class="side">
       <div class="panel" id="pRules"><h2>Rules this round</h2><ol class="rules" id="ruleList"></ol><p class="fine" id="ruleFine"></p></div>
       <div class="panel" id="pMe">
         <h2>You</h2>
         <div class="stats">
-          <div class="stat"><b id="meNum" class="me-num" style="font-size:28px;color:var(--you)">-</b><span>your number</span></div>
+          <div class="stat"><b id="meNum" class="me-num" style="font-size:28px;color:var(--you)">-</b><span>this round</span></div>
           <div class="stat"><b id="meC">0</b><span>correct</span></div>
           <div class="stat"><b id="meAvg">-</b><span>avg speed</span></div>
         </div>
@@ -268,7 +286,13 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
       <div class="panel" id="pLobby">
         <h2>Players <span id="pCount"></span></h2>
         <ul class="plist" id="plist"></ul>
-        <div class="limrow" id="limRow" hidden><label for="lim">Game length (minutes, max 14)</label><input id="lim" type="number" min="1" max="14" step="1" value="14"></div>
+        <div id="estWrap"><div class="est" id="estLine"></div><p class="fine" id="estFine"></p></div>
+        <div class="settings" id="settingsRow" hidden>
+          <label for="nnum">Numbers per round (10 to 99)<input id="nnum" type="number" min="10" max="99" step="1" value="10"></label>
+          <label for="rounds">Rounds (1 to 20)<input id="rounds" type="number" min="1" max="20" step="1" value="5"></label>
+          <label for="secs">Seconds per number (1 to 10)<input id="secs" type="number" min="1" max="10" step="1" value="3"></label>
+          <label for="nemo">Emojis in the middle (3 to 6)<input id="nemo" type="number" min="3" max="6" step="1" value="3"></label>
+        </div>
         <div class="row" id="hostCtl"></div>
         <p class="fine" id="hostNote"></p>
       </div>
@@ -276,9 +300,10 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
   </section>
 
   <section id="sOver" class="over" hidden>
-    <h1>Final leaderboard</h1>
+    <h1 id="overTitle">Final leaderboard</h1>
     <ol class="board" id="board"></ol>
     <p class="fine" id="myRank"></p>
+    <p class="fine" id="overFine"></p>
     <div class="row" id="overCtl"></div>
   </section>
 </div>
@@ -296,14 +321,12 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 <script>
 (function(){
 "use strict";
-const CFG=Object.assign({MAX_MIN:14,LIMIT_MS:0,STEP:1500,WIN:2000,PRE:3000,PICK_MS:12000,SHOW_MS:7000,MAXP:40,NUMS:40,MINRING:10,SLOW:2000,FIRST:0,REVEAL:5,RESHUFFLE:true},window.__MR_CFG||{});
-const {MAX_MIN,LIMIT_MS,STEP,WIN,PRE,PICK_MS,SHOW_MS,MAXP,NUMS,MINRING,SLOW,FIRST,REVEAL,RESHUFFLE}=CFG;
-/* The ring has one bulb per player: at least MINRING (10) and at most NUMS (40). */
-/* Every bulb stays lit for STEP ms. (FIRST > 0 would give the first FIRST bulbs SLOW ms each.) */
-const startOf=n=>n<=FIRST?(n-1)*SLOW:FIRST*SLOW+(n-FIRST-1)*STEP;
-let NCUR=NUMS;
-const totalMs=n=>FIRST*SLOW+((n||NCUR)-FIRST)*STEP;
-const litAt=e=>{if(e<0||e>=totalMs())return 0;if(e<FIRST*SLOW)return Math.floor(e/SLOW)+1;return FIRST+Math.floor((e-FIRST*SLOW)/STEP)+1;};
+const CFG=Object.assign({STEP:3000,STEP_MS:0,BOARD:6000,PRE:3000,GRACE:1500,PICK_MS:12000,SHOW_MS:7000,MAXP:40,MINRING:10,VMAX:100,DEF_ROUNDS:5,MAX_ROUNDS:20},window.__MR_CFG||{});
+const {BOARD,PRE,GRACE,PICK_MS,SHOW_MS,MAXP,MINRING,VMAX,DEF_ROUNDS,MAX_ROUNDS}=CFG;
+/* The host chooses STEP (ms per number) and NE (emojis in the middle, 3 to 6); both travel in the game state. */
+let STEP=CFG.STEP,NE=3;
+/* Each round the ring shows N numbers picked from 1..VMAX in ascending order, N = max(MINRING, players).
+   Every number lights for STEP ms, and every player answers every number. */
 const $=id=>document.getElementById(id);
 const rnd=n=>Math.floor(Math.random()*n);
 const pickOne=a=>a[rnd(a.length)];
@@ -311,30 +334,31 @@ const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[
 const now=()=>performance.now();
 const clean=s=>String(s||'').replace(/[\u0000-\u001f\u007f<>]/g,'').trim().slice(0,14);
 const fmt=ms=>{const s=Math.ceil(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
+const fmtLong=ms=>{const s=Math.round(ms/1000),m=Math.floor(s/60),r=s%60;return (m?m+' min':'')+(m&&r?' ':'')+(r||!m?r+' s':'');};
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
 
 /* ---------- rules ---------- */
 const EMOJIS=['🍕','🚀','🐙','🎸','🌵','🍩','🦄','⚡','🎲','🔥','🐢','🍉','🎯','🧩','👻','🍄','🦖','🎈','🍔','🌈','🐸','🎧','🏀','🍋','🦊','🚲','🔔','🍪','🐳','🌟'];
-const NEMO=3;
-const ALL_EMO=Array.from({length:NEMO},(_,i)=>i);
+const idxList=n=>Array.from({length:n},(_,i)=>i);
+const estMs=(R,n,step)=>R*n*step+Math.max(0,R-1)*BOARD;
 const emoOf=i=>(G&&Array.isArray(G.em)&&typeof G.em[i]==='string')?G.em[i].slice(0,8):'?';
 const isPrime=n=>{if(n<2)return false;for(let i=2;i*i<=n;i++)if(n%i===0)return false;return true;};
 const PRED={
   odd:{args:[0],t:n=>n%2===1,l:()=>'Odd numbers'},
   even:{args:[0],t:n=>n%2===0,l:()=>'Even numbers'},
-  mul:{args:[3,4,5,6,7,8,9,10,11],t:(n,a)=>n%a===0,l:a=>'Multiples of '+a},
+  mul:{args:[3,4,5,6,7,8,9,10,11,12,13],t:(n,a)=>n%a===0,l:a=>'Multiples of '+a},
   prime:{args:[0],t:isPrime,l:()=>'Prime numbers'},
   sq:{args:[0],t:n=>Number.isInteger(Math.sqrt(n)),l:()=>'Perfect squares'},
-  lt:{args:[10,20],t:(n,a)=>n<a,l:a=>'Numbers below '+a},
-  gt:{args:[30,40],t:(n,a)=>n>a,l:a=>'Numbers above '+a},
-  end:{args:[1,2,3,4,6,7,8,9],t:(n,a)=>n%10===a,l:a=>'Numbers ending in '+a},
+  lt:{args:[20,30,50],t:(n,a)=>n<a,l:a=>'Numbers below '+a},
+  gt:{args:[50,70,90],t:(n,a)=>n>a,l:a=>'Numbers above '+a},
+  end:{args:[1,2,3,4,5,6,7,8,9],t:(n,a)=>n%10===a,l:a=>'Numbers ending in '+a},
   has:{args:[1,2,3,4,5,6,7,8,9],t:(n,a)=>String(n).includes(String(a)),l:a=>'Numbers containing a '+a}
 };
 function makeOptions(k,avoidFamilies,emList){
   const out=[],fam=new Set(avoidFamilies||[]);let guard=0;
   while(out.length<k&&guard++<300){
     const pn=pickOne(Object.keys(PRED));if(fam.has(pn))continue;fam.add(pn);
-    out.push(pn+'.'+pickOne(PRED[pn].args)+'.'+(emList&&emList[out.length]!=null?emList[out.length]:rnd(NEMO)));
+    out.push(pn+'.'+pickOne(PRED[pn].args)+'.'+(emList&&emList[out.length]!=null?emList[out.length]:rnd(NE)));
   }
   return out;
 }
@@ -342,7 +366,7 @@ function parseRule(id){
   if(typeof id!=='string')return null;
   const [pn,a,k]=id.split('.');const P=PRED[pn];
   const key=+k;
-  if(!P||!Number.isInteger(key)||key<0||key>=NEMO)return null;
+  if(!P||!Number.isInteger(key)||key<0||key>=NE)return null;
   const arg=+a;
   return {id,pn,key,label:P.l(arg),test:n=>P.t(n,arg)};
 }
@@ -350,14 +374,13 @@ function expectedKey(n,rules,df){for(const r of rules)if(r.test(n))return r.key;
 function normKey(e){return String(e.key).toLowerCase();}
 
 /* ---------- state ---------- */
-let room=null,roomReady=false,peers=[],meId=null,joined=false,myName='';
-let hostPeer=null,G=null,T0=0,PL=new Map(),OWNER={},RULES=[];
+let room=null,roomReady=false,peers=[],meId=null,mySid=null,joined=false,myName='';
+let hostPeer=null,G=null,T0=0,PL=new Map(),RULES=[],VALS=[];
 const lastP={};
 let H=null;
-const my={c:0,rt:0,gid:null,rd:-1,num:0,exp:null,lightAt:0,done:true,res:null,timer:0,picked:{},tap:-1};
+const my={c:0,rt:0,rc:0,gid:null,rd:-1,active:false,ans:[],last:null,seen:0,skip:0,timer:0,picked:{}};
 
 const rankSort=(a,b)=>{
-  // a, b: {c, rt, name}
   if(b.c!==a.c)return b.c-a.c;
   const aa=a.c?a.rt/a.c:Infinity,bb=b.c?b.rt/b.c:Infinity;
   const d=aa-bb;if(d)return d;
@@ -365,14 +388,35 @@ const rankSort=(a,b)=>{
 };
 const viewers=()=>peers.filter(p=>p.kind==='viewer');
 function players(){
-  return viewers().filter(p=>p.presence&&p.presence.nm).sort((a,b)=>(a.presence.jt||0)-(b.presence.jt||0)||(a.peer<b.peer?-1:1));
+  return viewers().filter(p=>p.presence&&p.presence.nm&&p.presence.sid&&p.presence.sid===mySid).sort((a,b)=>(a.presence.jt||0)-(b.presence.jt||0)||(a.peer<b.peer?-1:1));
+}
+const MAXROOMS=2,MAXN=99;
+const ringCount=()=>{
+  if(H&&(!G||G.ph==='lobby'))return readNn();
+  if(G&&G.nn>=MINRING)return Math.min(MAXN,G.nn|0);
+  return MINRING;
+};
+const clampI=(v,a,b,d)=>{v=parseInt(v,10);return isNaN(v)?d:Math.min(b,Math.max(a,v));};
+const readRounds=()=>clampI($('rounds').value,1,MAX_ROUNDS,DEF_ROUNDS);
+const readSecs=()=>clampI($('secs').value,1,10,3);
+const readNn=()=>clampI($('nnum').value,MINRING,MAXN,MINRING);
+const readNe=()=>clampI($('nemo').value,3,6,3);
+const stepOf=()=>CFG.STEP_MS||readSecs()*1000;
+/* Open games: every host in the room, with how many players are in each. */
+function sessions(){
+  return viewers().filter(p=>p.presence&&p.presence.hs).map(h=>{
+    const g=h.presence.g||{};
+    const count=viewers().filter(p=>p.presence&&p.presence.nm&&p.presence.sid===h.peer).length;
+    return {id:h.peer,name:clean(h.presence.sn)||(clean(h.presence.nm)||'Host')+'\u2019s game',host:clean(h.presence.nm),count,ph:g.ph||'lobby',rd:g.rd||0,rounds:g.rounds||0,hs:h.presence.hs};
+  }).sort((a,b)=>a.hs-b.hs);
 }
 
 /* ---------- host engine ---------- */
 function startHosting(){
-  if(H||!room)return;
-  H={ph:'lobby',rd:0,seq:0,gid:null,pl:{},n:MINRING,limit:LIMIT_MS||MAX_MIN*60000,em:[],df:0,idxs:[0,1,2,3],endAt:0,until:0,dur:0,sel:[],op:[],ch:null,by:[],lastSel:[],top:null,doneAt:0,t:0,timer:0};
-  room.presence({hs:Date.now()});
+  if(H||!room||sessions().length>=MAXROOMS)return;
+  H={ph:'lobby',rd:0,seq:0,gid:null,pl:{},n:MINRING,vals:[],rounds:DEF_ROUNDS,step:CFG.STEP_MS||3000,ne:3,nn:MINRING,t0:Date.now(),em:[],df:0,until:0,dur:0,sel:[],op:[],ch:null,by:[],lastSel:[],top:null,doneAt:0,t:0,timer:0};
+  mySid=meId;
+  room.presence({hs:Date.now(),sid:meId,sn:clean($('sname').value)||null});
   publish();
   H.timer=setInterval(hostTick,100);
 }
@@ -380,15 +424,28 @@ function stopHosting(){
   if(!H)return;clearInterval(H.timer);H=null;
   if(room)room.presence({hs:null,g:null});
 }
-function publish(){
-  H.seq++;H.t=now();
-  const g={
-    ph:H.ph,rd:H.rd,seq:H.seq,gid:H.gid,t0:Date.now(),
-    rem:H.ph==='lobby'?H.limit:Math.max(0,H.endAt-H.t),lim:H.limit,n:H.n,em:H.em,df:H.df,dur:H.dur,
+function buildG(){
+  return {
+    ph:H.ph,rd:H.rd,seq:H.seq,gid:H.gid,t0:H.t0,rounds:H.rounds,step:H.step,ne:H.ne,nn:H.nn,n:H.n,vals:H.vals,
+    em:H.em,df:H.df,dur:H.dur,
     pl:Object.keys(H.pl).map(id=>[id].concat(H.pl[id])),
     sel:H.sel,op:H.op,ch:H.ch,by:H.by,top:H.top
   };
-  room.presence({g});
+}
+/* A new phase gets a new seq. A roster update keeps the seq, so nobody's round restarts. */
+function publish(){H.seq++;H.t=now();H.t0=Date.now();room.presence({g:buildG()});}
+function publishRoster(){room.presence({g:buildG()});}
+function addPlayer(p,ids){
+  const nm=clean(p.presence.nm)||'Player';
+  const old=Object.keys(H.pl).find(k=>H.pl[k][0]===nm&&!ids.has(k));
+  if(old){H.pl[p.peer]=H.pl[old];delete H.pl[old];}else H.pl[p.peer]=[nm,0,0,0];
+}
+function applySettings(){
+  if(!H||H.ph!=='lobby')return;
+  H.rounds=readRounds();H.step=stepOf();H.ne=readNe();H.nn=readNn();
+  $('rounds').value=H.rounds;$('nemo').value=H.ne;$('nnum').value=H.nn;
+  if(!CFG.STEP_MS)$('secs').value=H.step/1000;
+  publish();
 }
 function snapshot(){
   for(const id of Object.keys(H.pl)){
@@ -396,52 +453,27 @@ function snapshot(){
     if(p&&p.gid===H.gid){H.pl[id][2]=p.c|0;H.pl[id][3]=p.rt|0;}
   }
 }
-function readLimit(){
-  if(LIMIT_MS)return LIMIT_MS;
-  const v=parseInt($('lim').value,10);
-  return Math.min(MAX_MIN,Math.max(1,isNaN(v)?MAX_MIN:v))*60000;
-}
 function startGame(){
   if(!H||players().length<1)return;
-  H.limit=readLimit();
+  H.rounds=readRounds();H.step=stepOf();H.ne=readNe();H.nn=readNn();
   H.gid=Date.now();H.rd=0;H.pl={};H.top=null;H.lastSel=[];
-  H.endAt=now()+H.limit;
   goPick();
 }
 function goPick(){
   H.rd++;snapshot();
-  H.em=shuffle(EMOJIS).slice(0,NEMO);H.df=0;
+  H.em=shuffle(EMOJIS).slice(0,H.ne);H.df=0;
   const act=players().slice(0,MAXP);
   const ids=new Set(act.map(p=>p.peer));
-  H.n=Math.min(NUMS,Math.max(MINRING,act.length));
-  for(const p of act){
-    if(!H.pl[p.peer]){
-      const nm=clean(p.presence.nm)||'Player';
-      const old=Object.keys(H.pl).find(k=>H.pl[k][0]===nm&&!ids.has(k));
-      if(old){H.pl[p.peer]=H.pl[old];delete H.pl[old];}else H.pl[p.peer]=[nm,0,0,0];
-    }
-  }
-  const pool=shuffle(Array.from({length:H.n},(_,i)=>i+1));
-  const taken=new Set();
-  if(!RESHUFFLE&&H.rd>1){
-    for(const id of ids){const n=H.pl[id][1];if(n>0&&!taken.has(n))taken.add(n);else H.pl[id][1]=0;}
-  }
-  for(const id of Object.keys(H.pl)){
-    if(!ids.has(id)){H.pl[id][1]=0;continue;}
-    if(!RESHUFFLE&&H.rd>1&&H.pl[id][1]>0)continue;
-    let n;do{n=pool.pop();}while(taken.has(n));
-    taken.add(n);H.pl[id][1]=n;
-  }
-  let cands=act.map(p=>p.peer);
-  const fresh=cands.filter(id=>!H.lastSel.includes(id));
-  if(fresh.length>=2)cands=fresh;
-  H.sel=shuffle(cands).slice(0,2);
+  H.n=H.nn;
+  H.vals=shuffle(Array.from({length:VMAX},(_,i)=>i+1)).slice(0,H.n).sort((a,b)=>a-b);
+  for(const p of act)if(!H.pl[p.peer])addPlayer(p,ids);
+  const K=H.ne-1; // one rule per emoji except the default, so 3 emojis = 2 drafters, 6 emojis = 5
+  const everyone=shuffle(act.map(p=>p.peer));
+  const fresh=everyone.filter(id=>!H.lastSel.includes(id)),rest=everyone.filter(id=>H.lastSel.includes(id));
+  H.sel=fresh.concat(rest).slice(0,K);
   H.lastSel=H.sel.slice();
-  // Each player's 3 choices use 3 different emojis. The second player's set reuses at most one of the first player's.
-  const emA=shuffle(ALL_EMO).slice(0,3);
-  const emB=shuffle(ALL_EMO.filter(i=>!emA.includes(i)).concat(shuffle(emA))).slice(0,3);
-  const all=makeOptions(H.sel.length>1?6:3,[],H.sel.length>1?emA.concat(emB):emA);
-  H.op=H.sel.map((_,i)=>all.slice(i*3,i*3+3));
+  // Each drafter's 3 choices use 3 different emojis.
+  H.op=H.sel.map(()=>makeOptions(3,[],shuffle(idxList(H.ne)).slice(0,3)));
   H.ch=null;H.by=[];H.doneAt=0;
   H.ph='pick';H.dur=PICK_MS;H.until=now()+PICK_MS;
   publish();
@@ -452,24 +484,33 @@ function pickOf(id,i){
   return null;
 }
 function finishPick(){
-  const ch=[],by=[];
+  const K=H.ne-1,ch=[],by=[];
+  const fams=()=>ch.map(c=>c.split('.')[0]);
+  const sig=c=>c.split('.').slice(0,2).join('.');
   H.sel.forEach((id,i)=>{const c=pickOf(id,i);ch.push(c||pickOne(H.op[i]));by.push(id);});
-  const fam=()=>ch.map(c=>c.split('.')[0]);
-  while(ch.length<2){ch.push(makeOptions(1,fam())[0]);by.push(null);}
-  if(ch[0].split('.').slice(0,2).join('.')===ch[1].split('.').slice(0,2).join('.')){ch[1]=makeOptions(1,[ch[0].split('.')[0]])[0];by[1]=null;}
-  // The two chosen rules must use different emojis, and the default emoji differs from both.
-  const e0=+ch[0].split('.')[2];
-  if(+ch[1].split('.')[2]===e0){
-    const parts=ch[1].split('.');parts[2]=String(pickOne(ALL_EMO.filter(i=>i!==e0)));ch[1]=parts.join('.');
+  while(ch.length<K){ch.push(makeOptions(1,fams())[0]);by.push(null);}
+  // no two rules may test the same thing
+  for(let i=1;i<ch.length;i++){
+    if(ch.slice(0,i).some(c=>sig(c)===sig(ch[i]))){ch[i]=makeOptions(1,fams())[0];by[i]=null;}
   }
-  const e1=+ch[1].split('.')[2];
-  H.df=pickOne(ALL_EMO.filter(i=>i!==e0&&i!==e1));
+  // every rule gets its own emoji, and the one emoji left over is the default
+  const taken=new Set();
+  for(let i=0;i<ch.length;i++){
+    const p=ch[i].split('.');let e=+p[2];
+    if(taken.has(e)){e=pickOne(idxList(H.ne).filter(x=>!taken.has(x)));p[2]=String(e);ch[i]=p.join('.');}
+    taken.add(e);
+  }
+  H.df=idxList(H.ne).find(x=>!taken.has(x));
   H.ch=ch;H.by=by;
   H.ph='rules';H.dur=SHOW_MS;H.until=now()+SHOW_MS;
   publish();
 }
 function goPlay(){
-  H.ph='play';H.dur=PRE+totalMs(H.n)+WIN+800;H.until=now()+H.dur;publish();
+  H.ph='play';H.dur=PRE+H.n*H.step+GRACE;H.until=now()+H.dur;publish();
+}
+function goBoard(){
+  snapshot();
+  H.ph='board';H.dur=BOARD;H.until=now()+BOARD;publish();
 }
 function hostEnd(){
   snapshot();
@@ -479,82 +520,91 @@ function hostEnd(){
   publish();
 }
 function toLobby(){
-  H.ph='lobby';H.pl={};H.top=null;H.ch=null;H.em=[];H.sel=[];H.op=[];H.by=[];H.rd=0;H.gid=null;H.dur=0;
+  H.ph='lobby';H.pl={};H.top=null;H.ch=null;H.em=[];H.vals=[];H.sel=[];H.op=[];H.by=[];H.rd=0;H.gid=null;H.dur=0;
   publish();
 }
 function hostTick(){
   if(!H)return;
   const t=now();
   if(H.ph==='lobby'||H.ph==='over')return;
-  if(t>=H.endAt){hostEnd();return;}
   if(H.ph==='pick'){
     const done=H.sel.length>0&&H.sel.every((id,i)=>pickOf(id,i));
     if(done&&!H.doneAt)H.doneAt=t;
     if(t>=H.until||(H.doneAt&&t-H.doneAt>900))finishPick();
   }else if(H.ph==='rules'){if(t>=H.until)goPlay();}
-  else if(H.ph==='play'){if(t>=H.until)goPick();}
+  else if(H.ph==='play'){if(t>=H.until){if(H.rd>=H.rounds)hostEnd();else goBoard();}}
+  else if(H.ph==='board'){if(t>=H.until)goPick();}
+  // players who join during the game are added right away and start answering
+  const act=players().slice(0,MAXP),ids=new Set(act.map(p=>p.peer));
+  let added=false;
+  for(const p of act)if(!H.pl[p.peer]&&Object.keys(H.pl).length<MAXP){addPlayer(p,ids);added=true;}
+  if(added)publishRoster();
 }
 
 /* ---------- peers / phases ---------- */
-function onPeersChange(ch){
-  peers=ch.peers;
-  const m=peers.find(p=>p.isMe&&p.sameTab);if(m)meId=m.peer;
-  for(const p of peers)lastP[p.peer]=p.presence;
-  const hs=viewers().filter(p=>p.presence&&p.presence.hs).sort((a,b)=>(a.presence.hs-b.presence.hs)||(a.peer<b.peer?-1:1));
-  hostPeer=hs[0]||null;
-  if(H&&hostPeer&&hostPeer.peer!==meId)stopHosting();
+function refreshHost(){
+  hostPeer=mySid?(peers.find(p=>p.peer===mySid&&p.presence&&p.presence.hs)||null):null;
   const g=hostPeer&&hostPeer.presence.g?hostPeer.presence.g:null;
   if(g!==G){
     const prev=G;G=g;
     if(G&&(!prev||prev.seq!==G.seq))onPhase(!prev);
-    else if(G)indexG();
+    else if(G){indexG();lateActivate();}
   }
+}
+function onPeersChange(ch){
+  peers=ch.peers;
+  const m=peers.find(p=>p.isMe&&p.sameTab);if(m)meId=m.peer;
+  for(const p of peers)lastP[p.peer]=p.presence;
+  refreshHost();
   render();
 }
 function indexG(){
-  NCUR=Math.max(MINRING,Math.min(NUMS,(G.n|0)||MINRING));
-  PL=new Map();OWNER={};
-  for(const r of (G.pl||[])){PL.set(r[0],r.slice(1));if(r[2]>0)OWNER[r[2]]=r[1];}
+  PL=new Map();
+  for(const r of (G.pl||[]))PL.set(r[0],r.slice(1));
   RULES=(G.ch||[]).map(parseRule).filter(Boolean);
+  VALS=(Array.isArray(G.vals)?G.vals:[]).slice(0,MAXN).map(Number);
+  STEP=G.step>0?G.step:CFG.STEP;
+  NE=Math.min(6,Math.max(3,(G.ne|0)||3));
+}
+function restoreScore(rec){
+  if(rec&&G.gid&&G.gid===my.gid&&rec[2]>my.c){my.c=rec[2];my.rt=rec[3];if(room)room.presence({c:my.c,rt:my.rt,gid:my.gid});}
+}
+/* A player who joins (or is added) while a round is running starts answering at the number now lit. */
+function lateActivate(){
+  const rec=PL.get(meId);
+  restoreScore(rec);
+  if(!joined||!rec||my.active||G.ph==='lobby'||G.ph==='over'||G.ph==='board')return;
+  if(G.ph==='play'){
+    if(!RULES.length||!VALS.length)return;
+    my.active=true;my.skip=Math.max(0,curIdx());my.seen=my.skip;
+  }else my.active=true;
 }
 function onPhase(firstSight){
   indexG();
   const age=Date.now()-G.t0;
   T0=(firstSight&&age>2000)?now()-Math.min(age,60*60*1000):now();
   if(G.gid&&G.gid!==my.gid){
-    my.gid=G.gid;my.c=0;my.rt=0;my.res=null;my.picked={};
-    if(room)room.presence({c:0,rt:0,lr:null,pk:null,gid:G.gid});
+    my.gid=G.gid;my.c=0;my.rt=0;my.picked={};
+    if(room)room.presence({c:0,rt:0,pk:null,gid:G.gid});
   }
   const rec=PL.get(meId);
-  if(rec&&G.gid===my.gid&&rec[2]>my.c){my.c=rec[2];my.rt=rec[3];if(room)room.presence({c:my.c,rt:my.rt,gid:my.gid});}
+  restoreScore(rec);
   clearTimeout(my.timer);
-  my.tap=-1;
-  for(let i=1;i<bulbs.length;i++)bulbs[i].classList.remove('lit','mine','ok','bad');
-  litNow=0;mineNow=0;
+  // fresh round state, so nothing from an earlier round lingers
+  my.ans=[];my.last=null;my.seen=0;my.skip=0;my.rc=0;my.rd=G.rd;
+  for(let i=1;i<bulbs.length;i++)bulbs[i].classList.remove('lit','ok','bad');
+  litNow=0;paintS=[];
+  my.active=!!(joined&&rec);
   if(G.ph==='play'){
-    my.rd=G.rd;my.done=true;my.res=null;my.num=rec?rec[1]:0;
-    if(my.num>0&&joined&&RULES.length){
-      my.exp=expectedKey(my.num,RULES,G.df);
-      my.lightAt=T0+PRE+startOf(my.num);
-      my.done=false;
-      const rd=my.rd;
-      my.timer=setTimeout(()=>finalize(null,rd),Math.max(0,my.lightAt+WIN-now())+60);
-    }
-  }else if(G.ph==='rules'||G.ph==='pick'){
-    my.num=rec?rec[1]:0;my.rd=G.rd;my.done=true;
-    if(G.ph==='pick')my.res=null;
+    my.active=my.active&&RULES.length>0&&VALS.length>0;
+    if(my.active&&firstSight){my.skip=Math.max(0,curIdx());my.seen=my.skip;}
+    const rd=G.rd;
+    const left=PRE+VALS.length*STEP-(now()-T0);
+    my.timer=setTimeout(()=>roundEnd(rd),Math.max(0,left)+120);
   }
 }
-function finalize(res,rd){
-  if(my.done||rd!==my.rd)return;
-  my.done=true;clearTimeout(my.timer);
-  let ok=false,rt=0;
-  if(res){rt=res.t-my.lightAt;ok=res.k===my.exp;}
-  if(ok){my.c++;my.rt+=Math.round(rt);}
-  my.res={ok,rt,missed:!res,exp:my.exp};
-  if(room)room.presence({c:my.c,rt:my.rt,lr:[my.rd,my.num,ok?1:0],gid:my.gid});
-  render();
-}
+function publishScore(){if(room)room.presence({c:my.c,rt:my.rt,gid:my.gid});}
+function roundEnd(rd){if(rd!==my.rd)return;publishScore();}
 
 /* ---------- input ---------- */
 document.addEventListener('keydown',e=>{
@@ -563,15 +613,27 @@ document.addEventListener('keydown',e=>{
   const k=normKey(e);
   if(k==='1'||k==='2'||k==='3'){choose(+k-1);e.preventDefault();}
 },true);
-function tap(i){
-  if(!G||G.ph!=='play'||my.done||my.num<=0)return;
-  const t=now();
-  if(t<my.lightAt||t>my.lightAt+WIN)return;
-  my.tap=i;
-  finalize({k:i,t},my.rd);
+function curIdx(t){
+  if(!G||G.ph!=='play')return -1;
+  const e=(t==null?now():t)-T0-PRE;
+  if(e<0||e>=VALS.length*STEP)return -1;
+  return Math.floor(e/STEP);
 }
-$('lim').addEventListener('change',()=>{
-  if(H&&H.ph==='lobby'){H.limit=readLimit();$('lim').value=Math.round(H.limit/60000);publish();}
+function tap(i){
+  if(!my.active)return;
+  const t=now(),idx=curIdx(t);
+  if(idx<0||my.ans[idx])return;
+  const rt=t-T0-PRE-idx*STEP;
+  const exp=expectedKey(VALS[idx],RULES,G.df);
+  const ok=i===exp;
+  my.ans[idx]={k:i,ok,rt};
+  if(ok){my.c++;my.rc++;my.rt+=Math.round(rt);}
+  my.last={idx,ok,rt,exp,missed:false};
+  if((idx+1)%5===0||idx===VALS.length-1)publishScore();
+}
+['rounds','secs','nemo','nnum'].forEach(id=>{
+  $(id).addEventListener('input',renderEst);
+  $(id).addEventListener('change',applySettings);
 });
 
 /* ---------- actions ---------- */
@@ -583,42 +645,57 @@ function choose(i){
   if(room)room.presence({pk:[G.rd,id]});
   render();
 }
-function doJoin(asHost){
+function enter(sid,asHost){
   let n=clean($('name').value)||'Player';
-  const taken=new Set(players().filter(p=>p.peer!==meId).map(p=>p.presence.nm));
+  const taken=new Set(viewers().filter(p=>p.peer!==meId&&p.presence&&p.presence.sid===sid).map(p=>p.presence.nm));
   let base=n,i=2;while(taken.has(n)){n=base.slice(0,12)+' '+i++;}
-  myName=n;joined=true;
+  myName=n;joined=true;mySid=sid;
   try{localStorage.setItem('mr_name',n);}catch(e){}
-  if(room)room.presence({nm:n,jt:Date.now(),c:0,rt:0,lr:null,pk:null,gid:null});
+  if(room)room.presence({nm:n,jt:Date.now(),sid:sid,c:0,rt:0,pk:null,gid:null});
   if(asHost)startHosting();
+  refreshHost();
   render();
 }
-$('bJoin').addEventListener('click',()=>doJoin(false));
-$('bHost').addEventListener('click',()=>doJoin(true));
-$('name').addEventListener('keydown',e=>{if(e.key==='Enter'&&!$('bJoin').disabled)doJoin(false);});
+function leave(){
+  if(H)stopHosting();
+  clearTimeout(my.timer);
+  joined=false;mySid=null;G=null;hostPeer=null;PL=new Map();RULES=[];VALS=[];
+  my.c=0;my.rt=0;my.rc=0;my.gid=null;my.active=false;my.ans=[];my.last=null;my.picked={};
+  ringKey='';
+  if(room)room.presence({nm:null,sid:null,jt:null,c:null,rt:null,pk:null,gid:null});
+  render();
+}
+$('bHost').addEventListener('click',()=>{if(meId)enter(meId,true);});
+$('bLeave').addEventListener('click',leave);
 
-/* ---------- ring (one bulb per player in the round) ---------- */
+/* ---------- ring: this round's numbers, ascending, clockwise from the top ---------- */
 const bulbs=[null];
-let ringN=0,litNow=0;
-function buildRing(n){
+let ringKey='',litNow=0,paintS=[];
+function buildRing(vals){
   const ring=$('ring');
   for(let i=1;i<bulbs.length;i++)bulbs[i].remove();
-  bulbs.length=1;ringN=n;litNow=0;mineNow=0;
+  bulbs.length=1;litNow=0;paintS=[];
+  const n=vals.length;
   const chord=n>1?2*45.5*Math.sin(Math.PI/n):100;
-  const w=Math.min(13,Math.max(5,chord*0.88));
+  const w=Math.min(13,Math.max(2.4,chord*0.88));
   for(let k=1;k<=n;k++){
     const th=(k-1)/n*2*Math.PI;
-    const b=el('div','bulb',String(k));
+    const label=vals[k-1]==null?'':String(vals[k-1]);
+    const b=el('div','bulb',label);
     b.style.left=(50+45.5*Math.sin(th)).toFixed(3)+'%';
     b.style.top=(50-45.5*Math.cos(th)).toFixed(3)+'%';
     b.style.width=w.toFixed(2)+'%';
-    b.style.fontSize=(w*0.38).toFixed(2)+'cqw';
+    b.style.fontSize=(w*(label.length>2?0.27:0.36)).toFixed(2)+'cqw';
     ring.appendChild(b);bulbs.push(b);
   }
 }
-function ringSize(){
-  if(G&&G.ph!=='lobby'&&G.ph!=='over'&&G.n>0)return Math.max(MINRING,Math.min(NUMS,G.n));
-  return Math.max(MINRING,Math.min(NUMS,players().length));
+function ringVals(){
+  if(G&&(G.ph==='pick'||G.ph==='rules'||G.ph==='play')&&VALS.length)return VALS;
+  return Array(ringCount()).fill(null);
+}
+function ensureRing(){
+  const v=ringVals(),key=v.join(',');
+  if(key!==ringKey){ringKey=key;buildRing(v);}
 }
 
 /* ---------- render ---------- */
@@ -628,26 +705,53 @@ function ruleLi(tag,label,idx,by,cls){
   if(by)li.appendChild(el('span','by',by));
   return li;
 }
+function curSettings(){
+  if(H&&(!G||G.ph==='lobby'))return {R:readRounds(),step:stepOf(),ne:readNe()};
+  if(G)return {R:G.rounds||DEF_ROUNDS,step:G.step>0?G.step:CFG.STEP,ne:G.ne||3};
+  return {R:DEF_ROUNDS,step:CFG.STEP,ne:3};
+}
+function renderEst(){
+  const lob=!G||G.ph==='lobby';
+  $('estWrap').hidden=!lob;
+  if(!lob)return;
+  const s=curSettings(),n=ringCount();
+  $('estLine').textContent='Estimated game time: about '+fmtLong(estMs(s.R,n,s.step));
+  const secs=+(s.step/1000).toFixed(1);
+  $('estFine').textContent=s.R+(s.R===1?' round':' rounds')+' × '+n+' numbers × '+secs+(secs===1?' second':' seconds')+' each'
+    +(s.R>1?', plus '+(s.R-1)+' leaderboard '+(s.R===2?'break':'breaks')+' of '+(BOARD/1000)+' seconds':'')+'. Rule drafting adds a little more. '+s.ne+' emojis in the middle.';
+}
 let modalKey='';
 function render(){
+  ensureRing();
   const ph=G?G.ph:'lobby';
-  if(ringSize()!==ringN)buildRing(ringSize());
-  const over=ph==='over';
+  const over=ph==='over',board=ph==='board';
   $('sJoin').hidden=joined;
-  $('sGame').hidden=!joined||over;
-  $('sOver').hidden=!joined||!over;
-  $('hRound').textContent=(G&&(ph==='pick'||ph==='rules'||ph==='play'))?'Round '+G.rd:(over?'Game over':'Lobby');
+  $('sGame').hidden=!joined||over||board;
+  $('sOver').hidden=!joined||!(over||board);
+  $('bLeave').hidden=!joined;
+  $('hRound').textContent=(G&&(ph==='pick'||ph==='rules'||ph==='play'))?'Round '+G.rd+' / '+G.rounds:(board?'Round '+G.rd+' results':(over?'Game over':'Lobby'));
 
   if(!joined){
-    const np=players().length;
-    const ready=roomReady&&room;
-    $('bJoin').disabled=!ready;$('bHost').disabled=!ready||!!hostPeer;
+    const ready=!!(roomReady&&room&&meId);
+    const ss=sessions();
+    $('bHost').disabled=!ready||ss.length>=MAXROOMS;
+    const sl=$('sessList');sl.textContent='';
+    ss.forEach(s=>{
+      const li=el('li','sess');
+      const info=el('div','si');
+      info.appendChild(el('b',null,s.name));
+      const st=s.ph==='lobby'?'waiting to start':s.ph==='over'?'game over':'round '+s.rd+' of '+s.rounds+' in progress';
+      info.appendChild(el('span',null,s.count+(s.count===1?' player':' players')+' · '+st));
+      const b=el('button','btn primary sess-join',s.count>=MAXP?'Full':'Join');
+      b.disabled=!ready||s.count>=MAXP;b.onclick=()=>enter(s.id,false);
+      li.appendChild(info);li.appendChild(b);sl.appendChild(li);
+    });
+    $('sessHead').hidden=!ss.length;
     $('joinNote').textContent=!roomReady?'Connecting to the room...':!room?'Could not connect. Check the Supabase URL and key near the top of the script in this file.':
-      hostPeer?(np+(np===1?' player is':' players are')+' in the room. Join to take a seat.'):'No host yet. Start a new game and share this link with your players.';
+      ss.length>=MAXROOMS?'The room limit of '+MAXROOMS+' games is reached. Join one of the games above.':ss.length?'You can join a game at any time, even while a round is running.':'No open games yet. Host a new game and share this link with your players.';
     return;
   }
 
-  // players / lobby panel
   const lob=ph==='lobby';
   $('pLobby').hidden=!(lob||!hostPeer||H);
   const pl=$('plist');pl.textContent='';
@@ -657,8 +761,14 @@ function render(){
   pl.parentElement.querySelector('h2').style.display=lob?'':'none';
   pl.hidden=!lob;
 
-  $('limRow').hidden=!(H&&lob);
-  if(H&&lob&&document.activeElement!==$('lim'))$('lim').value=Math.round(H.limit/60000);
+  $('settingsRow').hidden=!(H&&lob);
+  if(H&&lob){
+    if(document.activeElement!==$('rounds'))$('rounds').value=H.rounds;
+    if(document.activeElement!==$('secs'))$('secs').value=+(H.step/1000).toFixed(1);
+    if(document.activeElement!==$('nemo'))$('nemo').value=H.ne;
+    if(document.activeElement!==$('nnum'))$('nnum').value=H.nn;
+  }
+  renderEst();
   const hc=$('hostCtl');hc.textContent='';
   const hn=$('hostNote');hn.textContent='';
   if(H){
@@ -669,13 +779,12 @@ function render(){
       const b=el('button','btn','End game now');b.onclick=()=>{if(H)hostEnd();};hc.appendChild(b);
     }
   }else if(!hostPeer){
-    const b=el('button','btn primary','Host this game');b.onclick=startHosting;hc.appendChild(b);
-    hn.textContent='There is no host in the room.';
+    const b=el('button','btn primary','Back to open games');b.onclick=leave;hc.appendChild(b);
+    hn.textContent='The host has left this game.';
   }else if(lob){
-    hn.textContent='Waiting for '+(clean(hostPeer.presence.nm)||'the host')+' to start the game.'+(G&&G.lim?' Game length: '+Math.round(G.lim/60000)+' min.':'');
+    hn.textContent='Waiting for '+(clean(hostPeer.presence.nm)||'the host')+' to start the game.';
   }
 
-  // rules panel
   const showRules=(ph==='rules'||ph==='play')&&RULES.length>0;
   $('pRules').hidden=!(showRules||ph==='pick');
   const rl=$('ruleList');rl.textContent='';
@@ -685,40 +794,30 @@ function render(){
       rl.appendChild(ruleLi('Rule '+(i+1),r.label,r.key,bn?'Picked by '+bn:'Random pick',''));
     });
     rl.appendChild(ruleLi('Else','Every other number',G.df,'',' else'));
-    $('ruleFine').textContent='If a number matches both rules, Rule 1 wins.';
+    $('ruleFine').textContent='If a number matches several rules, the lowest rule number wins.';
   }else if(ph==='pick'){
-    $('ruleFine').textContent='Two players are drafting this round’s rules.';
+    $('ruleFine').textContent='Some players are drafting this round’s rules.';
   }
 
-  // me panel (number and status text are updated every frame, because the number is revealed late)
   $('pMe').hidden=lob;
+  $('meNum').textContent=String(my.rc);
   $('meC').textContent=String(my.c);
   $('meAvg').textContent=my.c?(my.rt/my.c/1000).toFixed(2)+'s':'-';
 
-  // bulbs: mine / results
-  const resMap={};
-  if(ph==='play'){
-    for(const p of viewers()){const lr=p.presence.lr;if(Array.isArray(lr)&&lr[0]===G.rd)resMap[lr[1]]=lr[2];}
-  }
-  for(let n=1;n<bulbs.length;n++){
-    const b=bulbs[n];
-    b.classList.toggle('ok',resMap[n]===1);
-    b.classList.toggle('bad',resMap[n]===0);
-  }
-
   renderEmojis();
   renderModal();
-  if(over)renderOver();
+  if(over||board)renderOver();
 }
-let emKey='';
+let emKey='',emPickKey='';
 function renderEmojis(){
   const box=$('emojis');
-  const on=G&&Array.isArray(G.em)&&G.em.length===NEMO&&(G.ph==='pick'||G.ph==='rules'||G.ph==='play');
+  const on=G&&Array.isArray(G.em)&&G.em.length>=3&&G.em.length<=6&&(G.ph==='pick'||G.ph==='rules'||G.ph==='play');
   box.hidden=!on;
   if(!on){emKey='';return;}
   const key=G.rd+'|'+G.em.join('');
+  box.style.setProperty('--ew',({3:12,4:11,5:9.6,6:8.6})[G.em.length]);
   if(key!==emKey){
-    emKey=key;box.textContent='';
+    emKey=key;emPickKey='';box.textContent='';
     G.em.forEach((e,i)=>{
       const b=el('button','emo',String(e).slice(0,8));
       b.type='button';b.setAttribute('aria-label','Emoji '+(i+1));
@@ -726,10 +825,7 @@ function renderEmojis(){
       box.appendChild(b);
     });
   }
-  Array.prototype.forEach.call(box.children,(b,i)=>{
-    b.classList.toggle('idle',G.ph!=='play');
-    b.classList.toggle('picked',G.ph==='play'&&my.rd===G.rd&&my.tap===i);
-  });
+  Array.prototype.forEach.call(box.children,b=>{b.classList.toggle('idle',!(G.ph==='play'&&my.active));});
 }
 function renderModal(){
   const si=G&&G.ph==='pick'?G.sel.indexOf(meId):-1;
@@ -752,8 +848,14 @@ function renderModal(){
     box.appendChild(b);
   });
 }
+let overKey='';
 function renderOver(){
+  const fin=G.ph==='over';
   const rows=(G.pl||[]).map(r=>({id:r[0],name:r[1],c:r[3],rt:r[4]})).sort(rankSort);
+  const key=G.seq+'|'+(H?'h':'p')+'|'+meId+'|'+rows.map(r=>r.id+':'+r.c).join(',');
+  if(key===overKey)return;
+  overKey=key;
+  $('overTitle').textContent=fin?'Final leaderboard':'Round '+G.rd+' results';
   const top=rows.slice(0,10);
   const bd=$('board');bd.textContent='';
   top.forEach((r,i)=>{
@@ -765,10 +867,14 @@ function renderOver(){
     li.appendChild(sc);bd.appendChild(li);
   });
   const my_i=rows.findIndex(r=>r.id===meId);
-  $('myRank').textContent=my_i<0?'':(my_i<10?'You finished in the top 10.':'You finished '+(my_i+1)+' of '+rows.length+' with '+rows[my_i].c+' correct.');
+  let mr=my_i<0?'':(my_i<10?'You are in the top 10'+(fin?'.':' (place '+(my_i+1)+').'):'You are '+(my_i+1)+' of '+rows.length+' with '+rows[my_i].c+' correct.');
+  if(fin)mr=my_i<0?'':(my_i<10?'You finished in the top 10.':'You finished '+(my_i+1)+' of '+rows.length+' with '+rows[my_i].c+' correct.');
   const oc=$('overCtl');oc.textContent='';
-  if(H){const b=el('button','btn primary','Play again');b.onclick=toLobby;oc.appendChild(b);}
-  else $('myRank').textContent+=' Waiting for the host to start a new game.';
+  if(H){
+    if(fin){const b=el('button','btn primary','Play again');b.onclick=toLobby;oc.appendChild(b);}
+    else{const b=el('button','btn','End game now');b.onclick=()=>{if(H)hostEnd();};oc.appendChild(b);}
+  }else if(fin)mr+=' Waiting for the host to start a new game.';
+  $('myRank').textContent=mr;
 }
 
 /* ---------- frame loop ---------- */
@@ -777,75 +883,103 @@ function setT(id,v,cls){
   if(cache[id]!==v){cache[id]=v;$(id).textContent=v;}
   if(cls!==undefined&&cache[id+'c']!==cls){cache[id+'c']=cls;$(id).className=$(id).className.split(' ')[0]+(cls?' '+cls:'');}
 }
-let mineNow=0;
 function frame(){
   requestAnimationFrame(frame);
   const t=now();
   const ph=G?G.ph:'lobby';
-  const lobRem=(G&&G.lim)||LIMIT_MS||MAX_MIN*60000;
-  const rem=!G||ph==='lobby'?lobRem:ph==='over'?0:Math.max(0,G.rem-(t-T0));
-  setT('hClock',fmt(rem));
-  if(!joined)return;
-
-  let lit=0,pre=0;
+  const N=VALS.length,total=N*STEP;
+  let idx=-1,pre=0,afterEnd=false;
   if(G&&ph==='play'){
     const e=t-T0-PRE;
-    if(e<0)pre=Math.ceil(-e/1000);else lit=litAt(e);
+    if(e<0)pre=Math.ceil(-e/1000);else if(e<total)idx=Math.floor(e/STEP);else afterEnd=true;
   }
-  if(lit>=bulbs.length)lit=0;
-  if(lit!==litNow){
+  // estimated time left in the whole game
+  let est;
+  const Pm=N*STEP,Bm=BOARD;
+  if(!G||ph==='lobby'){const s=curSettings();est=estMs(s.R,ringCount(),s.step);}
+  else if(ph==='over')est=0;
+  else{
+    const R=G.rounds,rd=G.rd,el_=t-T0;
+    if(ph==='play')est=Math.max(0,Pm-Math.max(0,t-T0-PRE))+(R-rd)*Pm+(R-rd)*Bm;
+    else if(ph==='board')est=Math.max(0,Bm-el_)+(R-rd)*Pm+(R-rd-1)*Bm;
+    else est=(R-rd+1)*Pm+(R-rd)*Bm;
+  }
+  setT('hClock','~'+fmt(est));
+  if(!joined)return;
+
+  const litI=idx>=0?idx+1:0;
+  if(litI!==litNow){
     if(litNow&&bulbs[litNow])bulbs[litNow].classList.remove('lit');
-    if(lit)bulbs[lit].classList.add('lit');
-    litNow=lit;
+    if(litI&&bulbs[litI])bulbs[litI].classList.add('lit');
+    litNow=litI;
   }
-  const rec=G?PL.get(meId):null;
-  const myn=rec&&rec[1]>0?rec[1]:0;
-  // A player's own number is revealed only REVEAL bulbs before it lights.
-  const shown=!!(G&&ph==='play'&&myn&&(t-T0-PRE)>=startOf(Math.max(1,myn-REVEAL)));
-  const mineN=shown&&myn<bulbs.length?myn:0;
-  if(mineN!==mineNow){
-    if(mineNow&&bulbs[mineNow])bulbs[mineNow].classList.remove('mine');
-    if(mineN)bulbs[mineN].classList.add('mine');
-    mineNow=mineN;
+  // numbers that passed without an answer count as missed
+  const upto=idx>=0?idx:(afterEnd?N:0);
+  if(my.active){
+    while(my.seen<upto){
+      const k=my.seen;
+      if(!my.ans[k])my.last={idx:k,ok:false,missed:true,exp:expectedKey(VALS[k],RULES,G.df)};
+      my.seen++;
+    }
+    for(let i=0;i<N;i++){
+      const a=my.ans[i];
+      const s=a?(a.ok?'ok':'bad'):((i<upto&&i>=my.skip)?'bad':'');
+      if(paintS[i]!==s){
+        const b=bulbs[i+1];
+        if(b){b.classList.toggle('ok',s==='ok');b.classList.toggle('bad',s==='bad');}
+        paintS[i]=s;
+      }
+    }
   }
-  setT('meNum',shown?String(myn):(myn&&ph!=='lobby'?'?':'-'));
+  // highlight the emoji I picked for the current number
+  const a=idx>=0?my.ans[idx]:null;
+  const ek=idx+'|'+(a?a.k+(a.ok?'y':'n'):'');
+  if(ek!==emPickKey){
+    emPickKey=ek;
+    Array.prototype.forEach.call($('emojis').children,(b,j)=>{
+      const on=!!a&&a.k===j;
+      b.classList.toggle('picked',on);b.classList.toggle('ok',on&&a.ok);b.classList.toggle('bad',on&&!a.ok);
+    });
+  }
+  const nb=$('nBarWrap');
+  nb.hidden=!(idx>=0);
+  if(idx>=0)$('nBar').style.transform='scaleX('+Math.max(0,1-((t-T0-PRE)-idx*STEP)/STEP).toFixed(3)+')';
 
   let L='',B='',S='',C='';
   if(!G||ph==='lobby'){
     const n=players().length;L='Lobby';B=String(n);S=n===1?'player in the room':'players in the room';
   }else if(ph==='pick'){
     const names=G.sel.map(id=>PL.get(id)?PL.get(id)[0]:'').filter(Boolean);
-    L='Round '+G.rd+' rule draft';S=names.length?names.join(' and ')+(names.length>1?' are':' is')+' choosing the rules':'Choosing the rules';
+    L='Round '+G.rd+' rule draft';S=names.length?names.join(', ')+(names.length>1?' are':' is')+' choosing the rules':'Choosing the rules';
   }else if(ph==='rules'){
     L='Round '+G.rd+' rules';
     S='Learn the rules. Starting in '+Math.max(0,Math.ceil((G.dur-(t-T0))/1000))+'s';
   }else if(ph==='play'){
-    if(pre){L='Get ready';B=String(pre);C='go';S=myn?'Watch the ring. Your number appears '+REVEAL+' bulbs early.':'You are watching this round';}
-    else{
-      L=!myn?'Watching':(shown?'Your number':'Your number is hidden');
-      B=shown?String(myn):'';C=shown?'you':'';
-      S=lit?('Now lighting '+lit+(OWNER[lit]?' \u00b7 '+OWNER[lit]:'')):'Round complete';
-    }
+    if(pre){L='Get ready';B=String(pre);C='go';S=my.active?'Click the right emoji for every number that lights up.':'You are watching this round';}
+    else if(idx>=0){
+      L='Number '+(idx+1)+' of '+N;B=String(VALS[idx]);C='go';
+      S=!my.active?'You are watching this round':(a?(a.ok?'Hit!':'Wrong emoji'):'Click the emoji for this number');
+    }else{L='Round complete';S='Scores update after every round';}
   }
   setT('cLabel',L);setT('cBig',B,C);setT('cSub',S);
 
   let MS='',MC='wait';
-  if(ph==='play'&&my.res&&my.rd===G.rd){
-    MC=my.res.ok?'ok':'bad';
-    MS=my.res.ok?'Hit! '+(my.res.rt/1000).toFixed(2)+'s':(my.res.missed?'Too slow. ':'Wrong emoji. ')+'It was '+emoOf(my.res.exp)+'.';
+  if(ph==='play'&&my.active&&my.last){
+    const l=my.last;
+    if(l.ok){MC='ok';MS='Hit! '+(l.rt/1000).toFixed(2)+'s';}
+    else{MC='bad';MS=(l.missed?'Too slow. ':'Wrong emoji. ')+'It was '+emoOf(l.exp)+'.';}
   }else if(ph==='play'||ph==='rules'||ph==='pick'){
-    if(!myn)MS='You are watching this round. You join the next one.';
-    else if(ph==='play')MS=shown?'Your number is coming up. Click the right emoji when it lights.':'Your number appears '+REVEAL+' bulbs before it lights.';
-    else MS='Your number stays hidden until '+REVEAL+' bulbs before it lights.';
+    MS=my.active?'Click the right emoji for every number that lights up.':'You are watching this round. You join the next one.';
   }
   setT('meRes',MS,MC);
 
+  if(ph==='board')setT('overFine','Next round starts in '+Math.max(0,Math.ceil((G.dur-(t-T0))/1000))+'s');
+  else if(ph==='over')setT('overFine','');
   if(!$('modal').hidden&&G&&G.dur)$('mBar').style.transform='scaleX('+Math.max(0,1-(t-T0)/G.dur).toFixed(3)+')';
 }
 
 /* ---------- init ---------- */
 try{const s=localStorage.getItem('mr_name');if(s)$('name').value=s;}catch(e){}
-buildRing(MINRING);
 render();
 requestAnimationFrame(frame);
 (async function init(){
@@ -860,7 +994,6 @@ requestAnimationFrame(frame);
   }
   render();
 })();
-window.addEventListener('pagehide',()=>{});
 })();
 </script>
 
