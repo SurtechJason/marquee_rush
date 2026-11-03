@@ -72,18 +72,27 @@ button{font:inherit;color:inherit;cursor:pointer}
 .stage{width:min(100%,calc(100vh - 110px),800px);min-width:0;margin:0 auto}
 @media (max-width:900px){.stage{width:100%}}
 .ring{position:relative;aspect-ratio:1;container-type:inline-size}
-.bulb{position:absolute;width:5.5%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;
-  display:grid;place-items:center;font-family:var(--font-display);font-size:2cqw;
+.bulb{position:absolute;width:8.4%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;
+  display:grid;place-items:center;font-family:var(--font-display);font-size:3.2cqw;
   background:var(--bulb-off);color:#6f628f;border:1px solid var(--line);
   transition:background .35s ease,color .35s ease,box-shadow .35s ease,transform .2s ease}
-.bulb.lit{background:var(--bulb-on);color:#3a2600;border-color:var(--bulb-on);box-shadow:0 0 2.2cqw var(--bulb-glow);transition-duration:.05s;z-index:3}
+.bulb.lit{background:var(--bulb-on);color:#3a2600;border-color:var(--bulb-on);box-shadow:0 0 3cqw var(--bulb-glow);transition-duration:.05s;z-index:3}
 .bulb.mine{border:2px solid var(--you);color:var(--you);transform:translate(-50%,-50%) scale(1.22);z-index:2}
 .bulb.mine.lit{color:#3a2600;box-shadow:0 0 0 3px var(--you),0 0 2.4cqw var(--bulb-glow)}
 .bulb.ok{background:var(--ok);color:#042a1a;border-color:var(--ok)}
 .bulb.bad{background:var(--bad);color:#33000f;border-color:var(--bad)}
-.core{position:absolute;inset:21%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1.2cqw}
+.core{position:absolute;inset:17%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:1.6cqw}
 .c-label{font-size:max(12px,2.3cqw);text-transform:uppercase;letter-spacing:.14em;color:var(--muted);font-weight:700}
-.c-big{font-family:var(--font-display);font-size:max(34px,14cqw);line-height:1;font-variant-numeric:tabular-nums}
+.c-big{font-family:var(--font-display);font-size:max(30px,9cqw);line-height:1;font-variant-numeric:tabular-nums}
+.c-big:empty{display:none}
+.emojis{display:flex;gap:1.4cqw;justify-content:center;flex-wrap:wrap;font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif}
+.emo{width:max(54px,12cqw);aspect-ratio:1;border-radius:50%;background:var(--panel);border:2px solid var(--line);font-size:max(30px,7cqw);line-height:1;display:grid;place-items:center;padding:0;cursor:pointer;touch-action:manipulation;transition:transform .1s,border-color .1s}
+.emo:hover:not(.idle){transform:scale(1.1);border-color:var(--bulb-on)}
+.emo.idle{opacity:.55;cursor:default}
+.emo.picked{border-color:var(--you);background:#12303a;transform:scale(1.1)}
+kbd.emo-k{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;font-size:22px;background:var(--bg);border:1px solid var(--line);padding:2px 10px}
+.limrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.limrow input{font:inherit;width:84px;background:var(--bg);color:var(--text);border:2px solid var(--line);border-radius:10px;padding:6px 10px}
 .c-big.you{color:var(--you)}
 .c-big.go{color:var(--bulb-on)}
 .c-sub{font-size:max(13px,2.3cqw);color:var(--text);max-width:34ch;text-wrap:balance}
@@ -224,7 +233,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 
   <section id="sJoin" class="join">
     <h1>Marquee Rush</h1>
-    <p class="lede">Fifty bulbs light up one by one. When your number glows, hit the right key within 2 seconds. Most correct hits in 14 minutes wins.</p>
+    <p class="lede">The ring has one bulb per player, with a minimum of 10. The bulbs light up one by one. When your number glows, click the right emoji. Most correct hits in 14 minutes wins.</p>
     <label for="name">Your name</label>
     <input id="name" maxlength="14" autocomplete="off" placeholder="Enter your name">
     <div class="row">
@@ -234,15 +243,16 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
     <p class="fine" id="joinNote">Connecting to the room...</p>
     <p class="fine" id="roomInfo"></p>
     <ul class="howto">
-      <li>Your default key is <b>Space</b>.</li>
-      <li>Before every round, two random players each draft one rule from three choices. Rules change which key you must press, for example <b>odd numbers: Enter</b>.</li>
-      <li>Play on a computer with a keyboard. Keep this tab open.</li>
+      <li>The ring has one bulb per player, with a minimum of 10. Three emojis appear in the middle each round. Bulbs light one at a time, and when yours lights you click the right emoji.</li>
+      <li>Your number stays hidden until 5 bulbs before it lights.</li>
+      <li>Before every round, two random players each draft one rule from three choices. A rule links numbers to an emoji, for example <b>odd numbers: the pizza</b>. Every other number uses the round's default emoji.</li>
+      <li>Keep this tab open while you play. It works on phones too.</li>
     </ul>
   </section>
 
   <section id="sGame" class="game" hidden>
     <div class="stage"><div class="ring" id="ring">
-      <div class="core"><div class="c-label" id="cLabel"></div><div class="c-big" id="cBig"></div><div class="c-sub" id="cSub"></div></div>
+      <div class="core"><div class="c-label" id="cLabel"></div><div class="c-big" id="cBig"></div><div class="emojis" id="emojis" hidden></div><div class="c-sub" id="cSub"></div></div>
     </div></div>
     <aside class="side">
       <div class="panel" id="pRules"><h2>Rules this round</h2><ol class="rules" id="ruleList"></ol><p class="fine" id="ruleFine"></p></div>
@@ -258,6 +268,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
       <div class="panel" id="pLobby">
         <h2>Players <span id="pCount"></span></h2>
         <ul class="plist" id="plist"></ul>
+        <div class="limrow" id="limRow" hidden><label for="lim">Game length (minutes, max 14)</label><input id="lim" type="number" min="1" max="14" step="1" value="14"></div>
         <div class="row" id="hostCtl"></div>
         <p class="fine" id="hostNote"></p>
       </div>
@@ -285,8 +296,14 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 <script>
 (function(){
 "use strict";
-const CFG=Object.assign({GAME_MS:14*60*1000,STEP:1000,WIN:2000,PRE:3000,PICK_MS:12000,SHOW_MS:7000,MAXP:30,NUMS:50,RESHUFFLE:true},window.__MR_CFG||{});
-const {GAME_MS,STEP,WIN,PRE,PICK_MS,SHOW_MS,MAXP,NUMS,RESHUFFLE}=CFG;
+const CFG=Object.assign({MAX_MIN:14,LIMIT_MS:0,STEP:1500,WIN:2000,PRE:3000,PICK_MS:12000,SHOW_MS:7000,MAXP:40,NUMS:40,MINRING:10,SLOW:2000,FIRST:0,REVEAL:5,RESHUFFLE:true},window.__MR_CFG||{});
+const {MAX_MIN,LIMIT_MS,STEP,WIN,PRE,PICK_MS,SHOW_MS,MAXP,NUMS,MINRING,SLOW,FIRST,REVEAL,RESHUFFLE}=CFG;
+/* The ring has one bulb per player: at least MINRING (10) and at most NUMS (40). */
+/* Every bulb stays lit for STEP ms. (FIRST > 0 would give the first FIRST bulbs SLOW ms each.) */
+const startOf=n=>n<=FIRST?(n-1)*SLOW:FIRST*SLOW+(n-FIRST-1)*STEP;
+let NCUR=NUMS;
+const totalMs=n=>FIRST*SLOW+((n||NCUR)-FIRST)*STEP;
+const litAt=e=>{if(e<0||e>=totalMs())return 0;if(e<FIRST*SLOW)return Math.floor(e/SLOW)+1;return FIRST+Math.floor((e-FIRST*SLOW)/STEP)+1;};
 const $=id=>document.getElementById(id);
 const rnd=n=>Math.floor(Math.random()*n);
 const pickOne=a=>a[rnd(a.length)];
@@ -297,9 +314,10 @@ const fmt=ms=>{const s=Math.ceil(ms/1000);return Math.floor(s/60)+':'+String(s%6
 function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
 
 /* ---------- rules ---------- */
-const KEYS=['enter','t','q','j','k','w','up','down','left','right','backspace','shift'];
-const KEYLABEL={enter:'Enter',up:'Up ↑',down:'Down ↓',left:'Left ←',right:'Right →',backspace:'Backspace',shift:'Shift',space:'Space'};
-const kl=k=>KEYLABEL[k]||String(k).toUpperCase();
+const EMOJIS=['🍕','🚀','🐙','🎸','🌵','🍩','🦄','⚡','🎲','🔥','🐢','🍉','🎯','🧩','👻','🍄','🦖','🎈','🍔','🌈','🐸','🎧','🏀','🍋','🦊','🚲','🔔','🍪','🐳','🌟'];
+const NEMO=3;
+const ALL_EMO=Array.from({length:NEMO},(_,i)=>i);
+const emoOf=i=>(G&&Array.isArray(G.em)&&typeof G.em[i]==='string')?G.em[i].slice(0,8):'?';
 const isPrime=n=>{if(n<2)return false;for(let i=2;i*i<=n;i++)if(n%i===0)return false;return true;};
 const PRED={
   odd:{args:[0],t:n=>n%2===1,l:()=>'Odd numbers'},
@@ -312,31 +330,31 @@ const PRED={
   end:{args:[1,2,3,4,6,7,8,9],t:(n,a)=>n%10===a,l:a=>'Numbers ending in '+a},
   has:{args:[1,2,3,4,5,6,7,8,9],t:(n,a)=>String(n).includes(String(a)),l:a=>'Numbers containing a '+a}
 };
-function makeOptions(k,avoidFamilies){
+function makeOptions(k,avoidFamilies,emList){
   const out=[],fam=new Set(avoidFamilies||[]);let guard=0;
   while(out.length<k&&guard++<300){
     const pn=pickOne(Object.keys(PRED));if(fam.has(pn))continue;fam.add(pn);
-    out.push(pn+'.'+pickOne(PRED[pn].args)+'.'+pickOne(KEYS));
+    out.push(pn+'.'+pickOne(PRED[pn].args)+'.'+(emList&&emList[out.length]!=null?emList[out.length]:rnd(NEMO)));
   }
   return out;
 }
 function parseRule(id){
   if(typeof id!=='string')return null;
-  const [pn,a,key]=id.split('.');const P=PRED[pn];
-  if(!P||!KEYS.includes(key))return null;
+  const [pn,a,k]=id.split('.');const P=PRED[pn];
+  const key=+k;
+  if(!P||!Number.isInteger(key)||key<0||key>=NEMO)return null;
   const arg=+a;
   return {id,pn,key,label:P.l(arg),test:n=>P.t(n,arg)};
 }
-function expectedKey(n,rules){for(const r of rules)if(r.test(n))return r.key;return 'space';}
-function normKey(e){const k=e.key;if(k===' ')return 'space';if(k.indexOf('Arrow')===0)return k.slice(5).toLowerCase();return k.toLowerCase();}
+function expectedKey(n,rules,df){for(const r of rules)if(r.test(n))return r.key;return df|0;}
+function normKey(e){return String(e.key).toLowerCase();}
 
 /* ---------- state ---------- */
 let room=null,roomReady=false,peers=[],meId=null,joined=false,myName='';
 let hostPeer=null,G=null,T0=0,PL=new Map(),OWNER={},RULES=[];
 const lastP={};
 let H=null;
-const my={c:0,rt:0,gid:null,rd:-1,num:0,exp:null,lightAt:0,done:true,res:null,timer:0,picked:{}};
-let litNow=0;
+const my={c:0,rt:0,gid:null,rd:-1,num:0,exp:null,lightAt:0,done:true,res:null,timer:0,picked:{},tap:-1};
 
 const rankSort=(a,b)=>{
   // a, b: {c, rt, name}
@@ -353,7 +371,7 @@ function players(){
 /* ---------- host engine ---------- */
 function startHosting(){
   if(H||!room)return;
-  H={ph:'lobby',rd:0,seq:0,gid:null,pl:{},endAt:0,until:0,dur:0,sel:[],op:[],ch:null,by:[],lastSel:[],top:null,doneAt:0,t:0,timer:0};
+  H={ph:'lobby',rd:0,seq:0,gid:null,pl:{},n:MINRING,limit:LIMIT_MS||MAX_MIN*60000,em:[],df:0,idxs:[0,1,2,3],endAt:0,until:0,dur:0,sel:[],op:[],ch:null,by:[],lastSel:[],top:null,doneAt:0,t:0,timer:0};
   room.presence({hs:Date.now()});
   publish();
   H.timer=setInterval(hostTick,100);
@@ -366,7 +384,7 @@ function publish(){
   H.seq++;H.t=now();
   const g={
     ph:H.ph,rd:H.rd,seq:H.seq,gid:H.gid,t0:Date.now(),
-    rem:H.ph==='lobby'?GAME_MS:Math.max(0,H.endAt-H.t),dur:H.dur,
+    rem:H.ph==='lobby'?H.limit:Math.max(0,H.endAt-H.t),lim:H.limit,n:H.n,em:H.em,df:H.df,dur:H.dur,
     pl:Object.keys(H.pl).map(id=>[id].concat(H.pl[id])),
     sel:H.sel,op:H.op,ch:H.ch,by:H.by,top:H.top
   };
@@ -378,16 +396,24 @@ function snapshot(){
     if(p&&p.gid===H.gid){H.pl[id][2]=p.c|0;H.pl[id][3]=p.rt|0;}
   }
 }
+function readLimit(){
+  if(LIMIT_MS)return LIMIT_MS;
+  const v=parseInt($('lim').value,10);
+  return Math.min(MAX_MIN,Math.max(1,isNaN(v)?MAX_MIN:v))*60000;
+}
 function startGame(){
   if(!H||players().length<1)return;
+  H.limit=readLimit();
   H.gid=Date.now();H.rd=0;H.pl={};H.top=null;H.lastSel=[];
-  H.endAt=now()+GAME_MS;
+  H.endAt=now()+H.limit;
   goPick();
 }
 function goPick(){
   H.rd++;snapshot();
+  H.em=shuffle(EMOJIS).slice(0,NEMO);H.df=0;
   const act=players().slice(0,MAXP);
   const ids=new Set(act.map(p=>p.peer));
+  H.n=Math.min(NUMS,Math.max(MINRING,act.length));
   for(const p of act){
     if(!H.pl[p.peer]){
       const nm=clean(p.presence.nm)||'Player';
@@ -395,7 +421,7 @@ function goPick(){
       if(old){H.pl[p.peer]=H.pl[old];delete H.pl[old];}else H.pl[p.peer]=[nm,0,0,0];
     }
   }
-  const pool=shuffle(Array.from({length:NUMS},(_,i)=>i+1));
+  const pool=shuffle(Array.from({length:H.n},(_,i)=>i+1));
   const taken=new Set();
   if(!RESHUFFLE&&H.rd>1){
     for(const id of ids){const n=H.pl[id][1];if(n>0&&!taken.has(n))taken.add(n);else H.pl[id][1]=0;}
@@ -411,7 +437,10 @@ function goPick(){
   if(fresh.length>=2)cands=fresh;
   H.sel=shuffle(cands).slice(0,2);
   H.lastSel=H.sel.slice();
-  const all=makeOptions(H.sel.length>1?6:3);
+  // Each player's 3 choices use 3 different emojis. The second player's set reuses at most one of the first player's.
+  const emA=shuffle(ALL_EMO).slice(0,3);
+  const emB=shuffle(ALL_EMO.filter(i=>!emA.includes(i)).concat(shuffle(emA))).slice(0,3);
+  const all=makeOptions(H.sel.length>1?6:3,[],H.sel.length>1?emA.concat(emB):emA);
   H.op=H.sel.map((_,i)=>all.slice(i*3,i*3+3));
   H.ch=null;H.by=[];H.doneAt=0;
   H.ph='pick';H.dur=PICK_MS;H.until=now()+PICK_MS;
@@ -428,12 +457,19 @@ function finishPick(){
   const fam=()=>ch.map(c=>c.split('.')[0]);
   while(ch.length<2){ch.push(makeOptions(1,fam())[0]);by.push(null);}
   if(ch[0].split('.').slice(0,2).join('.')===ch[1].split('.').slice(0,2).join('.')){ch[1]=makeOptions(1,[ch[0].split('.')[0]])[0];by[1]=null;}
+  // The two chosen rules must use different emojis, and the default emoji differs from both.
+  const e0=+ch[0].split('.')[2];
+  if(+ch[1].split('.')[2]===e0){
+    const parts=ch[1].split('.');parts[2]=String(pickOne(ALL_EMO.filter(i=>i!==e0)));ch[1]=parts.join('.');
+  }
+  const e1=+ch[1].split('.')[2];
+  H.df=pickOne(ALL_EMO.filter(i=>i!==e0&&i!==e1));
   H.ch=ch;H.by=by;
   H.ph='rules';H.dur=SHOW_MS;H.until=now()+SHOW_MS;
   publish();
 }
 function goPlay(){
-  H.ph='play';H.dur=PRE+NUMS*STEP+WIN+800;H.until=now()+H.dur;publish();
+  H.ph='play';H.dur=PRE+totalMs(H.n)+WIN+800;H.until=now()+H.dur;publish();
 }
 function hostEnd(){
   snapshot();
@@ -443,7 +479,7 @@ function hostEnd(){
   publish();
 }
 function toLobby(){
-  H.ph='lobby';H.pl={};H.top=null;H.ch=null;H.sel=[];H.op=[];H.by=[];H.rd=0;H.gid=null;H.dur=0;
+  H.ph='lobby';H.pl={};H.top=null;H.ch=null;H.em=[];H.sel=[];H.op=[];H.by=[];H.rd=0;H.gid=null;H.dur=0;
   publish();
 }
 function hostTick(){
@@ -476,6 +512,7 @@ function onPeersChange(ch){
   render();
 }
 function indexG(){
+  NCUR=Math.max(MINRING,Math.min(NUMS,(G.n|0)||MINRING));
   PL=new Map();OWNER={};
   for(const r of (G.pl||[])){PL.set(r[0],r.slice(1));if(r[2]>0)OWNER[r[2]]=r[1];}
   RULES=(G.ch||[]).map(parseRule).filter(Boolean);
@@ -491,11 +528,14 @@ function onPhase(firstSight){
   const rec=PL.get(meId);
   if(rec&&G.gid===my.gid&&rec[2]>my.c){my.c=rec[2];my.rt=rec[3];if(room)room.presence({c:my.c,rt:my.rt,gid:my.gid});}
   clearTimeout(my.timer);
+  my.tap=-1;
+  for(let i=1;i<bulbs.length;i++)bulbs[i].classList.remove('lit','mine','ok','bad');
+  litNow=0;mineNow=0;
   if(G.ph==='play'){
     my.rd=G.rd;my.done=true;my.res=null;my.num=rec?rec[1]:0;
     if(my.num>0&&joined&&RULES.length){
-      my.exp=expectedKey(my.num,RULES);
-      my.lightAt=T0+PRE+(my.num-1)*STEP;
+      my.exp=expectedKey(my.num,RULES,G.df);
+      my.lightAt=T0+PRE+startOf(my.num);
       my.done=false;
       const rd=my.rd;
       my.timer=setTimeout(()=>finalize(null,rd),Math.max(0,my.lightAt+WIN-now())+60);
@@ -517,22 +557,22 @@ function finalize(res,rd){
 }
 
 /* ---------- input ---------- */
-const BLOCK=new Set(['space','up','down','left','right','backspace','enter','shift','tab']);
 document.addEventListener('keydown',e=>{
-  if(!joined||!G)return;
-  const tag=(document.activeElement&&document.activeElement.tagName)||'';
-  if(tag==='INPUT')return;
+  if(!joined||!G||G.ph!=='pick'||$('modal').hidden)return;
+  if(document.activeElement&&document.activeElement.tagName==='INPUT')return;
   const k=normKey(e);
-  if(G.ph==='pick'&&!$('modal').hidden){
-    if(k==='1'||k==='2'||k==='3'){choose(+k-1);e.preventDefault();}
-    return;
-  }
-  if(G.ph==='play'||G.ph==='rules'){if(BLOCK.has(k))e.preventDefault();}
-  if(G.ph!=='play'||my.done||my.num<=0||e.repeat)return;
+  if(k==='1'||k==='2'||k==='3'){choose(+k-1);e.preventDefault();}
+},true);
+function tap(i){
+  if(!G||G.ph!=='play'||my.done||my.num<=0)return;
   const t=now();
   if(t<my.lightAt||t>my.lightAt+WIN)return;
-  finalize({k,t},my.rd);
-},true);
+  my.tap=i;
+  finalize({k:i,t},my.rd);
+}
+$('lim').addEventListener('change',()=>{
+  if(H&&H.ph==='lobby'){H.limit=readLimit();$('lim').value=Math.round(H.limit/60000);publish();}
+});
 
 /* ---------- actions ---------- */
 function choose(i){
@@ -557,29 +597,41 @@ $('bJoin').addEventListener('click',()=>doJoin(false));
 $('bHost').addEventListener('click',()=>doJoin(true));
 $('name').addEventListener('keydown',e=>{if(e.key==='Enter'&&!$('bJoin').disabled)doJoin(false);});
 
-/* ---------- ring ---------- */
+/* ---------- ring (one bulb per player in the round) ---------- */
 const bulbs=[null];
-(function buildRing(){
+let ringN=0,litNow=0;
+function buildRing(n){
   const ring=$('ring');
-  for(let n=1;n<=NUMS;n++){
-    const th=(n-1)/NUMS*2*Math.PI;
-    const b=el('div','bulb',String(n));
+  for(let i=1;i<bulbs.length;i++)bulbs[i].remove();
+  bulbs.length=1;ringN=n;litNow=0;mineNow=0;
+  const chord=n>1?2*45.5*Math.sin(Math.PI/n):100;
+  const w=Math.min(13,Math.max(5,chord*0.88));
+  for(let k=1;k<=n;k++){
+    const th=(k-1)/n*2*Math.PI;
+    const b=el('div','bulb',String(k));
     b.style.left=(50+45.5*Math.sin(th)).toFixed(3)+'%';
     b.style.top=(50-45.5*Math.cos(th)).toFixed(3)+'%';
+    b.style.width=w.toFixed(2)+'%';
+    b.style.fontSize=(w*0.38).toFixed(2)+'cqw';
     ring.appendChild(b);bulbs.push(b);
   }
-})();
+}
+function ringSize(){
+  if(G&&G.ph!=='lobby'&&G.ph!=='over'&&G.n>0)return Math.max(MINRING,Math.min(NUMS,G.n));
+  return Math.max(MINRING,Math.min(NUMS,players().length));
+}
 
 /* ---------- render ---------- */
-function ruleLi(tag,label,key,by,cls){
+function ruleLi(tag,label,idx,by,cls){
   const li=el('li',cls||'');
-  li.appendChild(el('span','tag',tag));li.appendChild(el('span','rl',label));li.appendChild(el('kbd',null,kl(key)));
+  li.appendChild(el('span','tag',tag));li.appendChild(el('span','rl',label));li.appendChild(el('kbd','emo-k',emoOf(idx)));
   if(by)li.appendChild(el('span','by',by));
   return li;
 }
 let modalKey='';
 function render(){
   const ph=G?G.ph:'lobby';
+  if(ringSize()!==ringN)buildRing(ringSize());
   const over=ph==='over';
   $('sJoin').hidden=joined;
   $('sGame').hidden=!joined||over;
@@ -605,12 +657,14 @@ function render(){
   pl.parentElement.querySelector('h2').style.display=lob?'':'none';
   pl.hidden=!lob;
 
+  $('limRow').hidden=!(H&&lob);
+  if(H&&lob&&document.activeElement!==$('lim'))$('lim').value=Math.round(H.limit/60000);
   const hc=$('hostCtl');hc.textContent='';
   const hn=$('hostNote');hn.textContent='';
   if(H){
     if(ph==='lobby'){
       const b=el('button','btn primary','Start game');b.disabled=list.length<1;b.onclick=startGame;hc.appendChild(b);
-      hn.textContent='You are the host. Keep this tab open. The game runs for '+Math.round(GAME_MS/60000)+' minutes.';
+      hn.textContent='You are the host. Keep this tab open.';
     }else if(ph==='pick'||ph==='rules'||ph==='play'){
       const b=el('button','btn','End game now');b.onclick=()=>{if(H)hostEnd();};hc.appendChild(b);
     }
@@ -618,7 +672,7 @@ function render(){
     const b=el('button','btn primary','Host this game');b.onclick=startHosting;hc.appendChild(b);
     hn.textContent='There is no host in the room.';
   }else if(lob){
-    hn.textContent='Waiting for '+(clean(hostPeer.presence.nm)||'the host')+' to start the game.';
+    hn.textContent='Waiting for '+(clean(hostPeer.presence.nm)||'the host')+' to start the game.'+(G&&G.lim?' Game length: '+Math.round(G.lim/60000)+' min.':'');
   }
 
   // rules panel
@@ -630,43 +684,52 @@ function render(){
       const byId=G.by&&G.by[i];const bn=byId&&PL.get(byId)?PL.get(byId)[0]:null;
       rl.appendChild(ruleLi('Rule '+(i+1),r.label,r.key,bn?'Picked by '+bn:'Random pick',''));
     });
-    rl.appendChild(ruleLi('Else','Every other number','space','',' else'));
+    rl.appendChild(ruleLi('Else','Every other number',G.df,'',' else'));
     $('ruleFine').textContent='If a number matches both rules, Rule 1 wins.';
   }else if(ph==='pick'){
     $('ruleFine').textContent='Two players are drafting this round’s rules.';
   }
 
-  // me panel
-  const rec=PL.get(meId);
+  // me panel (number and status text are updated every frame, because the number is revealed late)
   $('pMe').hidden=lob;
-  $('meNum').textContent=rec&&rec[1]>0?String(rec[1]):'-';
   $('meC').textContent=String(my.c);
   $('meAvg').textContent=my.c?(my.rt/my.c/1000).toFixed(2)+'s':'-';
-  const mr=$('meRes');
-  if(ph==='play'||ph==='rules'||ph==='pick'){
-    if(my.res&&ph==='play'){
-      mr.className='result '+(my.res.ok?'ok':'bad');
-      mr.textContent=my.res.ok?'Hit! '+(my.res.rt/1000).toFixed(2)+'s':(my.res.missed?'Too slow. ':'Wrong key. ')+'It was '+kl(my.res.exp)+'.';
-    }else if(ph==='play'&&my.num>0){mr.className='result wait';mr.textContent='Wait for your bulb to light.';}
-    else if(rec&&rec[1]>0){mr.className='result wait';mr.textContent='Your number is '+rec[1]+' this round.';}
-    else{mr.className='result wait';mr.textContent='You are watching this round. You join the next one.';}
-  }
 
   // bulbs: mine / results
   const resMap={};
   if(ph==='play'){
     for(const p of viewers()){const lr=p.presence.lr;if(Array.isArray(lr)&&lr[0]===G.rd)resMap[lr[1]]=lr[2];}
   }
-  const mineN=(ph==='play'||ph==='rules')&&rec?rec[1]:0;
-  for(let n=1;n<=NUMS;n++){
+  for(let n=1;n<bulbs.length;n++){
     const b=bulbs[n];
-    b.classList.toggle('mine',n===mineN);
     b.classList.toggle('ok',resMap[n]===1);
     b.classList.toggle('bad',resMap[n]===0);
   }
 
+  renderEmojis();
   renderModal();
   if(over)renderOver();
+}
+let emKey='';
+function renderEmojis(){
+  const box=$('emojis');
+  const on=G&&Array.isArray(G.em)&&G.em.length===NEMO&&(G.ph==='pick'||G.ph==='rules'||G.ph==='play');
+  box.hidden=!on;
+  if(!on){emKey='';return;}
+  const key=G.rd+'|'+G.em.join('');
+  if(key!==emKey){
+    emKey=key;box.textContent='';
+    G.em.forEach((e,i)=>{
+      const b=el('button','emo',String(e).slice(0,8));
+      b.type='button';b.setAttribute('aria-label','Emoji '+(i+1));
+      b.addEventListener('pointerdown',ev=>{ev.preventDefault();tap(i);});
+      box.appendChild(b);
+    });
+  }
+  Array.prototype.forEach.call(box.children,(b,i)=>{
+    b.classList.toggle('idle',G.ph!=='play');
+    b.classList.toggle('picked',G.ph==='play'&&my.rd===G.rd&&my.tap===i);
+  });
 }
 function renderModal(){
   const si=G&&G.ph==='pick'?G.sel.indexOf(meId):-1;
@@ -684,7 +747,7 @@ function renderModal(){
     const b=el('button','opt'+(id===picked?' sel':''));
     b.appendChild(el('span','n',String(i+1)));
     b.appendChild(el('span','t',r.label));
-    b.appendChild(el('kbd',null,kl(r.key)));
+    b.appendChild(el('kbd','emo-k',emoOf(r.key)));
     b.onclick=()=>choose(i);
     box.appendChild(b);
   });
@@ -714,49 +777,75 @@ function setT(id,v,cls){
   if(cache[id]!==v){cache[id]=v;$(id).textContent=v;}
   if(cls!==undefined&&cache[id+'c']!==cls){cache[id+'c']=cls;$(id).className=$(id).className.split(' ')[0]+(cls?' '+cls:'');}
 }
+let mineNow=0;
 function frame(){
   requestAnimationFrame(frame);
   const t=now();
   const ph=G?G.ph:'lobby';
-  const rem=!G||ph==='lobby'?GAME_MS:ph==='over'?0:Math.max(0,G.rem-(t-T0));
+  const lobRem=(G&&G.lim)||LIMIT_MS||MAX_MIN*60000;
+  const rem=!G||ph==='lobby'?lobRem:ph==='over'?0:Math.max(0,G.rem-(t-T0));
   setT('hClock',fmt(rem));
   if(!joined)return;
 
   let lit=0,pre=0;
   if(G&&ph==='play'){
     const e=t-T0-PRE;
-    if(e<0)pre=Math.ceil(-e/1000);else if(e<NUMS*STEP)lit=Math.floor(e/STEP)+1;
+    if(e<0)pre=Math.ceil(-e/1000);else lit=litAt(e);
   }
+  if(lit>=bulbs.length)lit=0;
   if(lit!==litNow){
-    if(litNow)bulbs[litNow].classList.remove('lit');
+    if(litNow&&bulbs[litNow])bulbs[litNow].classList.remove('lit');
     if(lit)bulbs[lit].classList.add('lit');
     litNow=lit;
   }
   const rec=G?PL.get(meId):null;
   const myn=rec&&rec[1]>0?rec[1]:0;
+  // A player's own number is revealed only REVEAL bulbs before it lights.
+  const shown=!!(G&&ph==='play'&&myn&&(t-T0-PRE)>=startOf(Math.max(1,myn-REVEAL)));
+  const mineN=shown&&myn<bulbs.length?myn:0;
+  if(mineN!==mineNow){
+    if(mineNow&&bulbs[mineNow])bulbs[mineNow].classList.remove('mine');
+    if(mineN)bulbs[mineN].classList.add('mine');
+    mineNow=mineN;
+  }
+  setT('meNum',shown?String(myn):(myn&&ph!=='lobby'?'?':'-'));
+
   let L='',B='',S='',C='';
   if(!G||ph==='lobby'){
     const n=players().length;L='Lobby';B=String(n);S=n===1?'player in the room':'players in the room';
   }else if(ph==='pick'){
     const names=G.sel.map(id=>PL.get(id)?PL.get(id)[0]:'').filter(Boolean);
-    L='Round '+G.rd+' rule draft';B='?';S=names.length?names.join(' and ')+(names.length>1?' are':' is')+' choosing the rules':'Choosing the rules';
+    L='Round '+G.rd+' rule draft';S=names.length?names.join(' and ')+(names.length>1?' are':' is')+' choosing the rules':'Choosing the rules';
   }else if(ph==='rules'){
-    L='Round '+G.rd+' rules';B=myn?String(myn):'-';C=myn?'you':'';
+    L='Round '+G.rd+' rules';
     S='Learn the rules. Starting in '+Math.max(0,Math.ceil((G.dur-(t-T0))/1000))+'s';
   }else if(ph==='play'){
-    if(pre){L='Get ready';B=String(pre);C='go';S=myn?'Your number is '+myn:'You are watching this round';}
+    if(pre){L='Get ready';B=String(pre);C='go';S=myn?'Watch the ring. Your number appears '+REVEAL+' bulbs early.':'You are watching this round';}
     else{
-      L=myn?'Your number':'Watching';B=myn?String(myn):'-';C=myn?'you':'';
-      S=lit?('Now lighting '+lit+(OWNER[lit]?' · '+OWNER[lit]:'')):'Round complete';
+      L=!myn?'Watching':(shown?'Your number':'Your number is hidden');
+      B=shown?String(myn):'';C=shown?'you':'';
+      S=lit?('Now lighting '+lit+(OWNER[lit]?' \u00b7 '+OWNER[lit]:'')):'Round complete';
     }
   }
   setT('cLabel',L);setT('cBig',B,C);setT('cSub',S);
+
+  let MS='',MC='wait';
+  if(ph==='play'&&my.res&&my.rd===G.rd){
+    MC=my.res.ok?'ok':'bad';
+    MS=my.res.ok?'Hit! '+(my.res.rt/1000).toFixed(2)+'s':(my.res.missed?'Too slow. ':'Wrong emoji. ')+'It was '+emoOf(my.res.exp)+'.';
+  }else if(ph==='play'||ph==='rules'||ph==='pick'){
+    if(!myn)MS='You are watching this round. You join the next one.';
+    else if(ph==='play')MS=shown?'Your number is coming up. Click the right emoji when it lights.':'Your number appears '+REVEAL+' bulbs before it lights.';
+    else MS='Your number stays hidden until '+REVEAL+' bulbs before it lights.';
+  }
+  setT('meRes',MS,MC);
 
   if(!$('modal').hidden&&G&&G.dur)$('mBar').style.transform='scaleX('+Math.max(0,1-(t-T0)/G.dur).toFixed(3)+')';
 }
 
 /* ---------- init ---------- */
 try{const s=localStorage.getItem('mr_name');if(s)$('name').value=s;}catch(e){}
+buildRing(MINRING);
 render();
 requestAnimationFrame(frame);
 (async function init(){
