@@ -185,7 +185,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
     if(!window.supabase||/PASTE_/.test(SUPABASE_URL+SUPABASE_KEY))return null;
     const myId=Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10);
     const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{realtime:{params:{eventsPerSecond:10}}});
-    const ch=sb.channel('marquee-'+roomCode(),{config:{presence:{key:myId}}});
+    let ch=null;
     let mine={},snapshot=[],subscribed=false,timer=0;
     const cache={};
     const peerH=[],connH=[];
@@ -208,21 +208,38 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
       cache[key]={j:j,o:o,isMe:isMe};return o;
     }
     function fire(){const ch2={peers:snapshot,joined:[],left:[],updated:[]};peerH.slice().forEach(h=>h(ch2));}
-    ch.on('presence',{event:'sync'},()=>{rebuild();fire();});
-    ch.subscribe(async status=>{
-      if(status==='SUBSCRIBED'){
-        subscribed=true;
-        try{await ch.track(JSON.parse(JSON.stringify(mine)));}catch(e){}
-        connH.forEach(h=>h(true));
-      }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
-        subscribed=false;connH.forEach(h=>h(false));
-      }
-    });
+    let gen=0,retry=0,rt=0;
+    function connect(){
+      const my=++gen;
+      if(ch){try{sb.removeChannel(ch);}catch(e){}}
+      ch=sb.channel('marquee-'+roomCode(),{config:{presence:{key:myId}}});
+      ch.on('presence',{event:'sync'},()=>{if(my!==gen)return;rebuild();fire();});
+      ch.subscribe(async status=>{
+        if(my!==gen)return;
+        if(status==='SUBSCRIBED'){
+          subscribed=true;retry=0;
+          try{await ch.track(JSON.parse(JSON.stringify(mine)));}catch(e){}
+          connH.forEach(h=>h(true));
+        }else if(status==='CHANNEL_ERROR'||status==='TIMED_OUT'||status==='CLOSED'){
+          subscribed=false;connH.forEach(h=>h(false));lose();
+        }
+      });
+    }
+    /* Never give up: if the channel is lost (phone sleep, Wi-Fi blip, throttled tab), rebuild it with the same player id. */
+    function lose(){
+      if(rt)return;
+      rt=setTimeout(()=>{rt=0;if(!subscribed)connect();},Math.min(8000,500*Math.pow(2,retry++)));
+    }
+    function wake(){if(!subscribed){clearTimeout(rt);rt=0;retry=0;connect();}else{try{ch.track(JSON.parse(JSON.stringify(mine)));}catch(e){}}}
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)wake();});
+    window.addEventListener('online',wake);
+    window.addEventListener('pageshow',wake);
+    setInterval(()=>{if(!subscribed&&!rt)lose();},5000);
+    connect();
     function schedule(){
       if(timer)return;
       timer=setTimeout(()=>{timer=0;if(subscribed){try{ch.track(JSON.parse(JSON.stringify(mine)));}catch(e){}}},120);
     }
-    window.addEventListener('pagehide',()=>{try{ch.unsubscribe();}catch(e){}});
     const info=document.getElementById('roomInfo');
     if(info)info.textContent='Room code: '+roomCode()+'. Share this page’s link so everyone lands in the same room. To use a different room, add #yourcode to the end of the link.';
     rebuild();
@@ -542,8 +559,19 @@ function hostTick(){
 }
 
 /* ---------- peers / phases ---------- */
+let lostAt=0,lostTimer=0;
+const HOST_GRACE=12000;
 function refreshHost(){
-  hostPeer=mySid?(peers.find(p=>p.peer===mySid&&p.presence&&p.presence.hs)||null):null;
+  let found=mySid?(peers.find(p=>p.peer===mySid&&p.presence&&p.presence.hs)||null):null;
+  /* A short connection drop must not look like the host leaving: keep the last known game for a few seconds. */
+  if(!found&&mySid&&joined&&!H&&G){
+    if(!lostAt)lostAt=Date.now();
+    if(Date.now()-lostAt<HOST_GRACE){
+      clearTimeout(lostTimer);lostTimer=setTimeout(()=>{refreshHost();render();},HOST_GRACE-(Date.now()-lostAt)+50);
+      return;
+    }
+  }else{lostAt=0;clearTimeout(lostTimer);}
+  hostPeer=found;
   const g=hostPeer&&hostPeer.presence.g?hostPeer.presence.g:null;
   if(g!==G){
     const prev=G;G=g;
