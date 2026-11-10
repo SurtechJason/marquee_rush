@@ -103,7 +103,8 @@ kbd.emo-k{font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sa
 .sess .si span{color:var(--muted);font-size:14px}
 .host-box{display:flex;flex-direction:column;gap:8px;margin-top:6px}
 .host-box .row{flex-wrap:nowrap}
-.host-box .row input{flex:1;min-width:0;width:auto}
+.host-box .row input{flex:1 1 0;min-width:0;width:0}
+.join>*{min-width:0}
 .settings{display:flex;flex-direction:column;gap:8px}
 .settings label{display:flex;align-items:center;justify-content:space-between;gap:10px;font-weight:600;font-size:15px}
 .settings input{font:inherit;width:72px;background:var(--bg);color:var(--text);border:2px solid var(--line);border-radius:10px;padding:6px 10px}
@@ -183,7 +184,24 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
   }
   async function makeRoom(){
     if(!window.supabase||/PASTE_/.test(SUPABASE_URL+SUPABASE_KEY))return null;
-    const myId=Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10);
+    const rand=()=>Math.random().toString(36).slice(2,10)+Math.random().toString(36).slice(2,10);
+    /* Remember this device: reuse the saved player id so a returning player is recognised. Only one open tab can own the id,
+       so extra tabs on the same browser get a temporary id and are not auto-rejoined. */
+    let myId=null,stable=false;
+    try{
+      const saved=localStorage.getItem('mr_id');
+      if(saved&&navigator.locks){
+        const got=await new Promise(res=>navigator.locks.request('mr-id-'+saved,{ifAvailable:true},lock=>{if(!lock){res(false);return;}res(true);return new Promise(()=>{});}));
+        if(got){myId=saved;stable=true;}
+      }else if(saved){myId=saved;stable=true;}
+      if(!myId){
+        const fresh=rand();
+        if(!saved){localStorage.setItem('mr_id',fresh);stable=true;if(navigator.locks)navigator.locks.request('mr-id-'+fresh,()=>new Promise(()=>{}));}
+        myId=fresh;
+      }
+    }catch(e){}
+    if(!myId)myId=rand();
+    window.__mrStable=stable;window.__mrRoom=roomCode();
     const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{realtime:{params:{eventsPerSecond:10}}});
     let ch=null;
     let mine={},snapshot=[],subscribed=false,timer=0;
@@ -357,7 +375,9 @@ function el(tag,cls,text){const e=document.createElement(tag);if(cls)e.className
 /* ---------- rules ---------- */
 const EMOJIS=['🍕','🚀','🐙','🎸','🌵','🍩','🦄','⚡','🎲','🔥','🐢','🍉','🎯','🧩','👻','🍄','🦖','🎈','🍔','🌈','🐸','🎧','🏀','🍋','🦊','🚲','🔔','🍪','🐳','🌟'];
 const idxList=n=>Array.from({length:n},(_,i)=>i);
-const estMs=(R,n,step)=>R*n*step+Math.max(0,R-1)*BOARD;
+/* Each round also has a rule draft (up to PICK_MS), the rules screen (SHOW_MS) and a get-ready countdown (PRE). */
+const OV=PRE+SHOW_MS+PICK_MS;
+const estMs=(R,n,step)=>R*(n*step+OV)+Math.max(0,R-1)*BOARD;
 const emoOf=i=>(G&&Array.isArray(G.em)&&typeof G.em[i]==='string')?G.em[i].slice(0,8):'?';
 const isPrime=n=>{if(n<2)return false;for(let i=2;i*i<=n;i++)if(n%i===0)return false;return true;};
 const PRED={
@@ -584,6 +604,7 @@ function onPeersChange(ch){
   const m=peers.find(p=>p.isMe&&p.sameTab);if(m)meId=m.peer;
   for(const p of peers)lastP[p.peer]=p.presence;
   refreshHost();
+  tryAutoJoin();
   render();
 }
 function indexG(){
@@ -608,6 +629,7 @@ function lateActivate(){
   }else my.active=true;
 }
 function onPhase(firstSight){
+  if(joined&&!H&&mySid)saveSess(mySid);
   indexG();
   const age=Date.now()-G.t0;
   T0=(firstSight&&age>2000)?now()-Math.min(age,60*60*1000):now();
@@ -673,11 +695,29 @@ function choose(i){
   if(room)room.presence({pk:[G.rd,id]});
   render();
 }
+/* Remember which game this device was in, so coming back to the link rejoins it. */
+const SESS_KEY='mr_sess',SESS_TTL=6*3600*1000;
+const roomTag=()=>window.__mrRoom||'';
+function saveSess(sid){try{localStorage.setItem(SESS_KEY,JSON.stringify({sid:sid,name:myName,room:roomTag(),ts:Date.now()}));}catch(e){}}
+function loadSess(){try{const o=JSON.parse(localStorage.getItem(SESS_KEY)||'null');if(o&&o.sid&&o.room===roomTag()&&Date.now()-o.ts<SESS_TTL)return o;}catch(e){}return null;}
+function clearSess(){try{localStorage.removeItem(SESS_KEY);}catch(e){}}
+let autoDone=false,autoStart=0;
+function tryAutoJoin(){
+  if(autoDone||joined||!room||!meId||!window.__mrStable)return;
+  const sv=loadSess();
+  if(!sv){autoDone=true;return;}
+  if(!autoStart)autoStart=Date.now();
+  if(sessions().some(x=>x.id===sv.sid)){autoDone=true;$('name').value=sv.name;enter(sv.sid,false);return;}
+  if(Date.now()-autoStart>10000){autoDone=true;clearSess();render();return;}
+  setTimeout(()=>{tryAutoJoin();if(!joined)render();},1000);
+}
 function enter(sid,asHost){
+  autoDone=true;
   let n=clean($('name').value)||'Player';
   const taken=new Set(viewers().filter(p=>p.peer!==meId&&p.presence&&p.presence.sid===sid).map(p=>p.presence.nm));
   let base=n,i=2;while(taken.has(n)){n=base.slice(0,12)+' '+i++;}
   myName=n;joined=true;mySid=sid;
+  if(asHost)clearSess();else saveSess(sid);
   try{localStorage.setItem('mr_name',n);}catch(e){}
   if(room)room.presence({nm:n,jt:Date.now(),sid:sid,c:0,rt:0,pk:null,gid:null});
   if(asHost)startHosting();
@@ -685,6 +725,7 @@ function enter(sid,asHost){
   render();
 }
 function leave(){
+  autoDone=true;clearSess();
   if(H)stopHosting();
   clearTimeout(my.timer);
   joined=false;mySid=null;G=null;hostPeer=null;PL=new Map();RULES=[];VALS=[];
@@ -746,7 +787,7 @@ function renderEst(){
   $('estLine').textContent='Estimated game time: about '+fmtLong(estMs(s.R,n,s.step));
   const secs=+(s.step/1000).toFixed(1);
   $('estFine').textContent=s.R+(s.R===1?' round':' rounds')+' × '+n+' numbers × '+secs+(secs===1?' second':' seconds')+' each'
-    +(s.R>1?', plus '+(s.R-1)+' leaderboard '+(s.R===2?'break':'breaks')+' of '+(BOARD/1000)+' seconds':'')+'. Rule drafting adds a little more. '+s.ne+' emojis in the middle.';
+    +(s.R>1?', plus '+(s.R-1)+' leaderboard '+(s.R===2?'break':'breaks')+' of '+(BOARD/1000)+' seconds':'')+', plus about '+Math.round(OV/1000)+' seconds of rule drafting and get-ready time in every round. '+s.ne+' emojis in the middle.';
 }
 let modalKey='';
 function render(){
@@ -776,7 +817,7 @@ function render(){
     });
     $('sessHead').hidden=!ss.length;
     $('joinNote').textContent=!roomReady?'Connecting to the room...':!room?'Could not connect. Check the Supabase URL and key near the top of the script in this file.':
-      ss.length>=MAXROOMS?'The room limit of '+MAXROOMS+' games is reached. Join one of the games above.':ss.length?'You can join a game at any time, even while a round is running.':'No open games yet. Host a new game and share this link with your players.';
+      (!autoDone&&window.__mrStable&&loadSess())?'Looking for your game, '+loadSess().name+'...':ss.length>=MAXROOMS?'The room limit of '+MAXROOMS+' games is reached. Join one of the games above.':ss.length?'You can join a game at any time, even while a round is running.':'No open games yet. Host a new game and share this link with your players.';
     return;
   }
 
@@ -928,9 +969,11 @@ function frame(){
   else if(ph==='over')est=0;
   else{
     const R=G.rounds,rd=G.rd,el_=t-T0;
-    if(ph==='play')est=Math.max(0,Pm-Math.max(0,t-T0-PRE))+(R-rd)*Pm+(R-rd)*Bm;
-    else if(ph==='board')est=Math.max(0,Bm-el_)+(R-rd)*Pm+(R-rd-1)*Bm;
-    else est=(R-rd+1)*Pm+(R-rd)*Bm;
+    const rest=(R-rd)*(OV+Pm+Bm),dleft=Math.max(0,G.dur-el_);
+    if(ph==='play')est=Math.max(0,PRE+Pm-el_)+rest;
+    else if(ph==='board')est=dleft+(R-rd)*(OV+Pm)+(R-rd-1)*Bm;
+    else if(ph==='rules')est=dleft+PRE+Pm+rest;
+    else est=dleft+SHOW_MS+PRE+Pm+rest;
   }
   setT('hClock','~'+fmt(est));
   if(!joined)return;
