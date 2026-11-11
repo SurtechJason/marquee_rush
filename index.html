@@ -191,12 +191,14 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
     try{
       const saved=localStorage.getItem('mr_id');
       if(saved&&navigator.locks){
-        const got=await new Promise(res=>navigator.locks.request('mr-id-'+saved,{ifAvailable:true},lock=>{if(!lock){res(false);return;}res(true);return new Promise(()=>{});}));
+        /* wait briefly: a tab that was just closed or reloaded may not have released the id yet */
+        const got=await new Promise(res=>{const ac=new AbortController(),to=setTimeout(()=>ac.abort(),1500);
+          navigator.locks.request('mr-id-'+saved,{signal:ac.signal},lock=>{clearTimeout(to);res(true);return new Promise(()=>{});}).catch(()=>res(false));});
         if(got){myId=saved;stable=true;}
-      }else if(saved){myId=saved;stable=true;}
+      }
       if(!myId){
         const fresh=rand();
-        if(!saved){localStorage.setItem('mr_id',fresh);stable=true;if(navigator.locks)navigator.locks.request('mr-id-'+fresh,()=>new Promise(()=>{}));}
+        if(!saved&&navigator.locks){localStorage.setItem('mr_id',fresh);stable=true;navigator.locks.request('mr-id-'+fresh,()=>new Promise(()=>{}));}
         myId=fresh;
       }
     }catch(e){}
@@ -299,7 +301,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
       <li>The host picks how many numbers each round shows (10 to 99). They are random numbers from 1 to 100, in ascending order around the ring. Up to 2 games can run at once, with up to 40 players each.</li>
       <li>Three to six emojis sit in the middle. Each number lights for the time the host sets (3 seconds by default), and everyone clicks the emoji the rules give for that number.</li>
       <li>Before every round, random players each draft one rule from three choices (one fewer than the number of emojis, so 2 players with 3 emojis, 5 with 6). A rule links numbers to an emoji, for example <b>odd numbers: the pizza</b>. Every other number uses the round's default emoji.</li>
-      <li>The leaderboard shows for 6 seconds after every round. You can join a game at any time, even mid-round. Keep this tab open while you play. It works on phones too.</li>
+      <li>After every round the leaderboard stays up until the host starts the next round. You can join a game at any time, even mid-round. Keep this tab open while you play. It works on phones too.</li>
     </ul>
   </section>
 
@@ -549,6 +551,7 @@ function goBoard(){
   snapshot();
   H.ph='board';H.dur=BOARD;H.until=now()+BOARD;publish();
 }
+function nextRound(){if(H&&H.ph==='board')goPick();}
 function hostEnd(){
   snapshot();
   const rows=Object.keys(H.pl).map(id=>({id,name:H.pl[id][0],c:H.pl[id][2],rt:H.pl[id][3]})).sort(rankSort);
@@ -570,7 +573,7 @@ function hostTick(){
     if(t>=H.until||(H.doneAt&&t-H.doneAt>900))finishPick();
   }else if(H.ph==='rules'){if(t>=H.until)goPlay();}
   else if(H.ph==='play'){if(t>=H.until){if(H.rd>=H.rounds)hostEnd();else goBoard();}}
-  else if(H.ph==='board'){if(t>=H.until)goPick();}
+  /* the leaderboard stays up until the host presses Next round */
   // players who join during the game are added right away and start answering
   const act=players().slice(0,MAXP),ids=new Set(act.map(p=>p.peer));
   let added=false;
@@ -787,7 +790,7 @@ function renderEst(){
   $('estLine').textContent='Estimated game time: about '+fmtLong(estMs(s.R,n,s.step));
   const secs=+(s.step/1000).toFixed(1);
   $('estFine').textContent=s.R+(s.R===1?' round':' rounds')+' × '+n+' numbers × '+secs+(secs===1?' second':' seconds')+' each'
-    +(s.R>1?', plus '+(s.R-1)+' leaderboard '+(s.R===2?'break':'breaks')+' of '+(BOARD/1000)+' seconds':'')+', plus about '+Math.round(OV/1000)+' seconds of rule drafting and get-ready time in every round. '+s.ne+' emojis in the middle.';
+    +(s.R>1?', plus '+(s.R-1)+' leaderboard '+(s.R===2?'break':'breaks')+' (counted as '+(BOARD/1000)+' seconds each, the host decides when to continue)':'')+', plus about '+Math.round(OV/1000)+' seconds of rule drafting and get-ready time in every round. '+s.ne+' emojis in the middle.';
 }
 let modalKey='';
 function render(){
@@ -941,7 +944,10 @@ function renderOver(){
   const oc=$('overCtl');oc.textContent='';
   if(H){
     if(fin){const b=el('button','btn primary','Play again');b.onclick=toLobby;oc.appendChild(b);}
-    else{const b=el('button','btn','End game now');b.onclick=()=>{if(H)hostEnd();};oc.appendChild(b);}
+    else{
+      const nb=el('button','btn primary','Next round');nb.onclick=nextRound;oc.appendChild(nb);
+      const b=el('button','btn','End game now');b.onclick=()=>{if(H)hostEnd();};oc.appendChild(b);
+    }
   }else if(fin)mr+=' Waiting for the host to start a new game.';
   $('myRank').textContent=mr;
 }
@@ -1044,7 +1050,7 @@ function frame(){
   }
   setT('meRes',MS,MC);
 
-  if(ph==='board')setT('overFine','Next round starts in '+Math.max(0,Math.ceil((G.dur-(t-T0))/1000))+'s');
+  if(ph==='board')setT('overFine',H?'Press Next round when everyone is ready.':'Waiting for the host to start the next round.');
   else if(ph==='over')setT('overFine','');
   if(!$('modal').hidden&&G&&G.dur)$('mBar').style.transform='scaleX('+Math.max(0,1-(t-T0)/G.dur).toFixed(3)+')';
 }
